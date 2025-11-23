@@ -84,11 +84,11 @@ def run_agent_cycle(app):
             time.sleep(2)
 
             connector.post_comment(task_id, "Agent simulation finished.")
-            status_updated = connector.update_status(task_id, "IN_REVIEW")
+            status_updated = connector.update_status(task_id, "In Review")
 
             if status_updated:
                 logging.info(
-                    f"Successfully updated task {task_id} status to 'IN_REVIEW'."
+                    f"Successfully updated task {task_id} status to 'In Review'."
                 )
             else:
                 logging.error(f"Failed to update status for task {task_id}.")

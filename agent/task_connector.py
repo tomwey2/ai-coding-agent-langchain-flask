@@ -97,17 +97,50 @@ class TaskAppConnector:
             logging.info(f"Fetching tasks from {url}")
             response = requests.get(url, headers=self.headers, timeout=10)
             response.raise_for_status()
-            all_tasks = response.json()
+            data = response.json()
 
-            # Client-side filtering for open tasks
+            # DEBUG: Um die Struktur zu sehen, falls es wieder kracht
+            logging.debug(f"Raw API Response: {data}")
+
+            # HAL-JSON Parsing Logik
+            all_tasks = []
+            if isinstance(data, dict):
+                # Prüfen auf _embedded (HAL Standard)
+                if "_embedded" in data:
+                    # Hier musst man ggf. schauen, ob der Key "tasks", "taskList" oder anders heißt
+                    # Wir versuchen es generisch oder nehmen 'tasks' als Default
+                    embedded = data["_embedded"]
+                    all_tasks = embedded.get("tasks", [])
+                    if not all_tasks and embedded:
+                        # Fallback: Nimm den ersten Key, den wir finden, falls es nicht 'tasks' ist
+                        first_key = next(iter(embedded))
+                        all_tasks = embedded[first_key]
+                else:
+                    # Vielleicht ist es kein HAL, sondern direktes Dict? Unwahrscheinlich bei der Fehlermeldung,
+                    # aber wir fangen es ab.
+                    logging.warning(
+                        "No '_embedded' key found in response. Checking if root is list..."
+                    )
+                    all_tasks = []
+            elif isinstance(data, list):
+                # Falls die API doch direkt eine Liste zurückgibt
+                all_tasks = data
+
+            # Filtern
             open_tasks = [
-                task for task in all_tasks if task.get("status", "").lower() == "open"
+                task
+                for task in all_tasks
+                if isinstance(task, dict) and task.get("state", "").lower() == "open"
             ]
-            logging.info(f"Found {len(open_tasks)} open tasks.")
+
+            logging.info(
+                f"Found {len(open_tasks)} open tasks (from {len(all_tasks)} total)."
+            )
             return open_tasks
-        except (requests.exceptions.RequestException, TaskAppConnectorError) as e:
-            logging.error(f"API request failed for get_open_tasks: {e}")
-            return None
+
+        except Exception as e:
+            logging.error(f"Error fetching tasks: {e}")
+            return []
 
     def post_comment(self, task_id, comment):
         """Posts a comment to a specific task."""
@@ -117,7 +150,7 @@ class TaskAppConnector:
         try:
             self._ensure_authenticated()
             url = self._get_url(f"/api/tasks/{task_id}/comments")
-            payload = {"text": comment}
+            payload = {"content": comment}
             logging.info(f"Posting comment to {url}: '{comment}'")
             response = requests.post(
                 url, headers=self.headers, json=payload, timeout=10
@@ -136,11 +169,9 @@ class TaskAppConnector:
         try:
             self._ensure_authenticated()
             url = self._get_url(f"/api/tasks/{task_id}")
-            payload = {"status": status}
+            payload = {"state": status}
             logging.info(f"Updating status of task {task_id} to '{status}' at {url}")
-            response = requests.patch(
-                url, headers=self.headers, json=payload, timeout=10
-            )
+            response = requests.put(url, headers=self.headers, json=payload, timeout=10)
             response.raise_for_status()
             return True
         except (requests.exceptions.RequestException, TaskAppConnectorError) as e:
