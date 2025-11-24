@@ -2,7 +2,7 @@ import asyncio
 import logging
 import os
 import shutil
-import subprocess  # <--- WICHTIG: Für den System-Clone
+import subprocess
 import time
 
 # LangChain Imports
@@ -21,7 +21,7 @@ from models import AgentConfig
 logger = logging.getLogger(__name__)
 
 
-# --- Lokale Tools ---
+# --- Lokale Tools (Robust gemacht) ---
 @tool
 def write_to_file(filepath: str, content: str):
     """
@@ -29,35 +29,39 @@ def write_to_file(filepath: str, content: str):
     Use this to create new files or overwrite existing ones with code.
     The filepath should be relative to the current working directory.
     """
-    base_dir = "/app/work_dir"
-    full_path = os.path.join(base_dir, filepath)
-    os.makedirs(os.path.dirname(full_path), exist_ok=True)
-    with open(full_path, "w", encoding="utf-8") as f:
-        f.write(content)
-    return f"Successfully wrote to {filepath}"
+    try:
+        base_dir = "/app/work_dir"
+        full_path = os.path.join(base_dir, filepath)
+
+        # Sicherheits-Check (Directory Traversal verhindern)
+        if not os.path.abspath(full_path).startswith(base_dir):
+            return f"ERROR: Access denied. Cannot write outside of {base_dir}"
+
+        os.makedirs(os.path.dirname(full_path), exist_ok=True)
+
+        with open(full_path, "w", encoding="utf-8") as f:
+            f.write(content)
+
+        return f"Successfully wrote to {filepath}"
+    except Exception as e:
+        return f"ERROR writing file: {str(e)}"
 
 
 # --- BOOTSTRAPPING FUNKTION ---
 def ensure_repository_exists(repo_url, work_dir):
     """
-    Stellt sicher, dass work_dir ein valides Git-Repo ist,
-    DAMIT der MCP-Server überhaupt starten kann.
+    Stellt sicher, dass work_dir ein valides Git-Repo ist.
     """
-    # 1. Ordner erstellen
     if not os.path.exists(work_dir):
         os.makedirs(work_dir)
 
-    # 2. Prüfen ob .git existiert
     git_dir = os.path.join(work_dir, ".git")
     if os.path.isdir(git_dir):
         logger.info("Repository already exists. Skipping clone.")
         return
 
     logger.info(f"Bootstrapping repository from {repo_url}...")
-
-    # 3. Versuchen zu Clonen
     try:
-        # Wir nutzen "." um in den aktuellen Ordner zu clonen
         subprocess.run(
             ["git", "clone", repo_url, "."],
             cwd=work_dir,
@@ -66,10 +70,8 @@ def ensure_repository_exists(repo_url, work_dir):
         )
         logger.info("Clone successful.")
     except subprocess.CalledProcessError as e:
-        logger.warning(f"Git Clone failed (likely Auth or Empty URL): {e}")
+        logger.warning(f"Git Clone failed: {e}")
         logger.warning("Falling back to 'git init' so the Agent can at least start.")
-
-        # 4. Fallback: Leeres Repo initialisieren (damit MCP nicht crasht)
         subprocess.run(["git", "init"], cwd=work_dir, check=True)
 
 
@@ -82,12 +84,10 @@ async def process_task_with_agent(task, config):
     )
     work_dir = "/app/work_dir"
 
-    # SCHRITT 0: Bootstrapping (Henne-Ei-Problem lösen)
-    # Wir machen das synchron, bevor der MCP Server startet
+    # 0. Bootstrapping
     ensure_repository_exists(repo_url, work_dir)
 
-    # SCHRITT 1: MCP Adapter starten
-    # Jetzt ist work_dir garantiert ein Git-Repo, der Server wird nicht crashen.
+    # 1. MCP Adapter starten
     async with McpGitAdapter() as mcp_adapter:
         logger.info("MCP Git Server connected.")
 
@@ -97,33 +97,33 @@ async def process_task_with_agent(task, config):
 
         llm = get_llm_model(config)
 
-        # Prompt Update: Wir sagen dem Agenten NICHT mehr "Clone repo",
-        # weil wir das schon erledigt haben. Er soll "Analysieren" und "Coden".
+        # WICHTIG: Prompt Anpassung gegen Fehler 3230
         prompt = ChatPromptTemplate.from_messages(
             [
                 (
                     "system",
-                    "You are an expert autonomous coding agent with file system access.\n"
-                    "You are working in a Linux container. The repository is cloned at: {work_dir}\n"
+                    "You are an expert autonomous coding agent.\n"
+                    "The repository is ALREADY CLONED in: {work_dir}\n"
                     "Target Repository URL: {repo_url}\n"
                     "\n"
-                    "AVAILABLE TOOLS:\n"
-                    "- use 'write_to_file' to save content to disk.\n"
-                    "- use 'git_add', 'git_commit', 'git_push' for version control.\n"
+                    "TOOLS AVAILABLE:\n"
+                    "- write_to_file: Create/Update files.\n"
+                    "- git_add, git_commit, git_push: Version control.\n"
                     "\n"
-                    "RULES:\n"
-                    "1. DO NOT just output the code or text in the chat. That is useless.\n"
-                    "2. YOU MUST call 'write_to_file' to actually save your changes to the disk.\n"
-                    "3. If you generate a README or code, save it immediately using the tool.\n"
-                    "4. After saving, you MUST commit and push.\n"
+                    "CRITICAL RULE: NO PARALLEL EXECUTION!\n"
+                    "You MUST execute tools ONE BY ONE.\n"
+                    "Do NOT call `git_add` and `git_commit` in the same turn.\n"
+                    "Wait for the result of one tool before calling the next.\n"
                     "\n"
                     "WORKFLOW:\n"
-                    "1. Analyze the current files.\n"
-                    "2. Generate the new content.\n"
-                    '3. EXECUTE \'write_to_file(filepath="README.md", content="...")\'.\n'
-                    "4. EXECUTE 'git_add(path=\".\")'.\n"
-                    "5. EXECUTE 'git_commit(message=\"Update README\")'.\n"
-                    "6. Reply with 'DONE' only after the tools have run.",
+                    "1. Analyze files.\n"
+                    "2. Use 'write_to_file' to create/change code.\n"
+                    "3. STOP and wait for result.\n"
+                    "4. Use 'git_add'.\n"
+                    "5. STOP and wait for result.\n"
+                    "6. Use 'git_commit'.\n"
+                    "7. Use 'git_push'.\n"
+                    "8. Reply with 'DONE'.",
                 ),
                 (
                     "human",
@@ -134,8 +134,13 @@ async def process_task_with_agent(task, config):
         )
 
         agent = create_tool_calling_agent(llm, all_tools, prompt)
+
         agent_executor = AgentExecutor(
-            agent=agent, tools=all_tools, verbose=True, handle_parsing_errors=True
+            agent=agent,
+            tools=all_tools,
+            verbose=True,
+            handle_parsing_errors=True,
+            max_iterations=15,  # Schutz gegen Endlos-Schleifen
         )
 
         logger.info(f"Agent starts working on Task {task['id']}...")
@@ -183,21 +188,19 @@ def run_agent_cycle(app):
             )
 
             try:
-                # Async Logik starten
                 output = asyncio.run(process_task_with_agent(task, config))
-                # --- UPDATE: Großzügiges Limit dank TEXT Feld ---
-                # 4000 Zeichen sind etwa eine volle A4 Seite Text.
+
+                # Großzügiges Limit für TEXT Feld
                 limit = 4000
                 if len(output) > limit:
-                    short_output = (
-                        output[:limit] + f"\n\n... (Output truncated at {limit} chars)"
-                    )
+                    short_output = output[:limit] + f"\n\n... (truncated)"
                 else:
                     short_output = output
+
                 final_comment = (
                     f"🤖 Job Done. I updated the code.\n\nSummary:\n{short_output}"
                 )
-                new_status = "In Review"
+                new_status = "IN_REVIEW"
 
             except Exception as e:
                 logger.error(f"Agent failed: {e}", exc_info=True)
