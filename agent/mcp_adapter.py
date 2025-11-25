@@ -109,6 +109,11 @@ class McpGitAdapter:
         # 2. Die Ausführungsfunktion (Wrapper)
         async def tool_func(**kwargs):
             try:
+                # Egal was Mistral halluziniert ('.', URL, leer), wir setzen
+                # hier hart den korrekten Pfad, den der MCP Server erwartet.
+                if "repo_path" in kwargs:
+                    kwargs["repo_path"] = "/app/work_dir"
+
                 # Aufruf an MCP Server
                 result = await self.session.call_tool(tool_name, arguments=kwargs)
 

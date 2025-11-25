@@ -20,38 +20,83 @@ from models import AgentConfig
 
 logger = logging.getLogger(__name__)
 
+# --- LOKALE TOOLS ---
 
-# --- Lokale Tools (Robust gemacht) ---
+
 @tool
 def write_to_file(filepath: str, content: str):
     """
     Writes content to a file.
-    Use this to create new files or overwrite existing ones with code.
-    The filepath should be relative to the current working directory.
+    Use this to create new files or overwrite existing ones.
     """
     try:
         base_dir = "/app/work_dir"
         full_path = os.path.join(base_dir, filepath)
 
-        # Sicherheits-Check (Directory Traversal verhindern)
+        # Security Check
         if not os.path.abspath(full_path).startswith(base_dir):
             return f"ERROR: Access denied. Cannot write outside of {base_dir}"
 
         os.makedirs(os.path.dirname(full_path), exist_ok=True)
-
         with open(full_path, "w", encoding="utf-8") as f:
             f.write(content)
-
         return f"Successfully wrote to {filepath}"
     except Exception as e:
         return f"ERROR writing file: {str(e)}"
 
 
-# --- BOOTSTRAPPING FUNKTION ---
+@tool
+def git_push_origin():
+    """
+    Pushes the current commits to the remote repository (origin).
+    REQUIRED: Use this tool to finalize the task.
+    """
+    try:
+        work_dir = "/app/work_dir"
+
+        # 1. Token aus Environment holen
+        token = os.environ.get("GITHUB_TOKEN")
+        if not token:
+            return "ERROR: GITHUB_TOKEN env variable is not set. Cannot push."
+
+        # 2. Aktuelle URL holen (z.B. https://github.com/user/repo.git)
+        current_url = subprocess.check_output(
+            ["git", "remote", "get-url", "origin"], cwd=work_dir, text=True
+        ).strip()
+
+        # 3. URL mit Token bauen (falls noch nicht drin)
+        # Wir machen aus "https://github.com..." -> "https://TOKEN@github.com..."
+        if "https://" in current_url and "@" not in current_url:
+            # Wir nutzen das Token als User (GitHub akzeptiert das)
+            auth_url = current_url.replace("https://", f"https://{token}@")
+
+            # Konfiguration updaten (nur lokal im Container)
+            subprocess.run(
+                ["git", "remote", "set-url", "origin", auth_url],
+                cwd=work_dir,
+                check=True,
+            )
+
+        # 4. Push ausführen
+        result = subprocess.run(
+            ["git", "push", "origin", "HEAD"],
+            cwd=work_dir,
+            capture_output=True,
+            text=True,
+            check=True,
+        )
+        return f"Push successful:\n{result.stdout}"
+
+    except subprocess.CalledProcessError as e:
+        # Sensible Daten aus Log entfernen (Token maskieren)
+        safe_stderr = e.stderr.replace(token, "***") if token else e.stderr
+        return f"Push FAILED:\n{safe_stderr}"
+    except Exception as e:
+        return f"ERROR during push: {str(e)}"
+
+
+# --- BOOTSTRAPPING ---
 def ensure_repository_exists(repo_url, work_dir):
-    """
-    Stellt sicher, dass work_dir ein valides Git-Repo ist.
-    """
     if not os.path.exists(work_dir):
         os.makedirs(work_dir)
 
@@ -62,6 +107,7 @@ def ensure_repository_exists(repo_url, work_dir):
 
     logger.info(f"Bootstrapping repository from {repo_url}...")
     try:
+        # Hier ist es wichtig, dass repo_url das Token enthält!
         subprocess.run(
             ["git", "clone", repo_url, "."],
             cwd=work_dir,
@@ -71,7 +117,9 @@ def ensure_repository_exists(repo_url, work_dir):
         logger.info("Clone successful.")
     except subprocess.CalledProcessError as e:
         logger.warning(f"Git Clone failed: {e}")
-        logger.warning("Falling back to 'git init' so the Agent can at least start.")
+        logger.warning(
+            "Falling back to 'git init' (Warning: Push will fail later if remote is missing)."
+        )
         subprocess.run(["git", "init"], cwd=work_dir, check=True)
 
 
@@ -84,48 +132,41 @@ async def process_task_with_agent(task, config):
     )
     work_dir = "/app/work_dir"
 
-    # 0. Bootstrapping
     ensure_repository_exists(repo_url, work_dir)
 
-    # 1. MCP Adapter starten
     async with McpGitAdapter() as mcp_adapter:
         logger.info("MCP Git Server connected.")
 
         mcp_tools = await mcp_adapter.get_langchain_tools()
-        local_tools = [write_to_file]
+
+        # HIER fügen wir das fehlende Push-Tool hinzu
+        local_tools = [write_to_file, git_push_origin]
+
         all_tools = mcp_tools + local_tools
 
         llm = get_llm_model(config)
 
-        # WICHTIG: Prompt Anpassung gegen Fehler 3230
         prompt = ChatPromptTemplate.from_messages(
             [
                 (
                     "system",
-                    "You are an expert autonomous coding agent. You are NOT a chat assistant.\n"
-                    "Your goal is to modifying the repository at: {work_dir}\n"
-                    "Target Repository URL: {repo_url}\n"
+                    "You are a Git Automation Bot.\n"
+                    "Repo: {repo_url}\n"
                     "\n"
-                    "TOOLS AVAILABLE:\n"
-                    "- write_to_file: Create/Update files.\n"
-                    "- git_add, git_commit, git_push: Version control.\n"
+                    "AVAILABLE TOOLS:\n"
+                    "- write_to_file: Save code.\n"
+                    "- git_add: Stage files (pass as list: ['filename']).\n"
+                    "- git_commit: Commit changes.\n"
+                    "- git_push_origin: Push to GitHub (MANDATORY step!).\n"
                     "\n"
-                    "You have a strict Checklist. You MUST execute these steps sequentially:\n"
-                    "1. [ ] Call 'write_to_file' to save the code/text to the disk.\n"
-                    "2. [ ] Call 'git_add' for the changed files.\n"
-                    "3. [ ] Call 'git_commit' with a message.\n"
-                    "4. [ ] Call 'git_push'.\n"
-                    "5. [ ] Reply with 'DONE'.\n"
-                    "\n"
-                    "IMPORTANT:\n"
-                    "- Do NOT output the content of the file in the chat. JUST SAVE IT.\n"
-                    "- Do NOT stop until step 4 is complete.\n"
-                    "- If 'git_push' requires credentials, assume they are in the URL.",
+                    "CHECKLIST (Execute sequentially):\n"
+                    "1. [ ] 'write_to_file' (Save code).\n"
+                    "2. [ ] 'git_add' (Stage it).\n"
+                    "3. [ ] 'git_commit' (Message: 'Update code').\n"
+                    "4. [ ] 'git_push_origin' (Push to remote).\n"
+                    "5. [ ] Reply with 'DONE'.\n",
                 ),
-                (
-                    "human",
-                    "Task ID: {task_id}\nTitle: {title}\nDescription: {description}",
-                ),
+                ("human", "Task: {title}\nDescription: {description}"),
                 ("placeholder", "{agent_scratchpad}"),
             ]
         )
@@ -137,7 +178,7 @@ async def process_task_with_agent(task, config):
             tools=all_tools,
             verbose=True,
             handle_parsing_errors=True,
-            max_iterations=15,  # Schutz gegen Endlos-Schleifen
+            max_iterations=15,
         )
 
         logger.info(f"Agent starts working on Task {task['id']}...")
@@ -155,7 +196,7 @@ async def process_task_with_agent(task, config):
 
 
 def run_agent_cycle(app):
-    # from main import app  # Local import to avoid circular dependency
+    # from main import app
 
     with app.app_context():
         try:
@@ -187,7 +228,6 @@ def run_agent_cycle(app):
             try:
                 output = asyncio.run(process_task_with_agent(task, config))
 
-                # Großzügiges Limit für TEXT Feld
                 limit = 4000
                 if len(output) > limit:
                     short_output = output[:limit] + f"\n\n... (truncated)"
