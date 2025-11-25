@@ -31,5 +31,5 @@ def get_llm_model(config=None):
         temperature=0,
         api_key=SecretStr(api_key),
         max_retries=2,
-        max_tokens=500,
+        max_tokens=8192,
     )
