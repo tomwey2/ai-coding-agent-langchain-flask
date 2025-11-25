@@ -2,6 +2,8 @@ import logging
 
 import requests
 
+from constants import TASK_STATE_OPEN
+
 # Configure basic logging
 logging.basicConfig(
     level=logging.INFO, format="%(asctime)s - %(levelname)s - %(message)s"
@@ -130,11 +132,11 @@ class TaskAppConnector:
             open_tasks = [
                 task
                 for task in all_tasks
-                if isinstance(task, dict) and task.get("state", "").lower() == "open"
+                if isinstance(task, dict) and task.get("state", "") == TASK_STATE_OPEN
             ]
 
             logging.info(
-                f"Found {len(open_tasks)} open tasks (from {len(all_tasks)} total)."
+                f"Found {len(open_tasks)} tasks with status '{TASK_STATE_OPEN}' (from {len(all_tasks)} total)."
             )
             return open_tasks
 

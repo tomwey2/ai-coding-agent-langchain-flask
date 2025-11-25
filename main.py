@@ -65,6 +65,13 @@ def create_app():
 
         return render_template("index.html", config=config)
 
+    return app
+
+
+# Main entry point
+if __name__ == "__main__":
+    app = create_app()
+
     with app.app_context():
         db.create_all()
 
@@ -76,22 +83,17 @@ def create_app():
         if not scheduler.get_job("agent_job"):
             scheduler.add_job(
                 id="agent_job",
-                func=lambda: run_agent_cycle(app=app),
+                func=run_agent_cycle,
                 trigger="interval",
                 seconds=interval_seconds,
                 replace_existing=True,
+                args=[app],
             )
 
-    # Start the scheduler
-    if not scheduler.running:
-        scheduler.start()
+        # Start the scheduler
+        if not scheduler.running:
+            scheduler.start()
 
-    return app
-
-
-# Main entry point
-if __name__ == "__main__":
-    app = create_app()
     # Note: Setting debug=True can cause the scheduler to run jobs twice.
     # Use debug=False or app.run(debug=True, use_reloader=False) in development.
     # WICHTIG: host='0.0.0.0' ist für Docker zwingend nötig
