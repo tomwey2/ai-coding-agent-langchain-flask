@@ -24,8 +24,8 @@ from agent.local_tools import (
 )
 from agent.mcp_adapter import McpGitAdapter
 
-# Prompt
-from agent.prompts import SINGLE_AGENT_SYSTEM
+# Prompts
+from agent.prompts import ANALYST_SYSTEM, BUGFIXER_SYSTEM, CODER_SYSTEM, ROUTER_SYSTEM
 from agent.task_connector import TaskAppConnector
 
 # Constants
@@ -38,6 +38,7 @@ logger = logging.getLogger(__name__)
 
 class AgentState(TypedDict):
     messages: Annotated[list[BaseMessage], add_messages]
+    next_step: str
 
 
 async def process_task_with_langgraph(task, config):
@@ -52,138 +53,211 @@ async def process_task_with_langgraph(task, config):
         logger.info("MCP Git Server connected.")
         mcp_tools = await mcp_adapter.get_langchain_tools()
 
-        # Alle Tools
-        all_tools = mcp_tools + [
-            list_files,
-            read_file,
-            write_to_file,
-            git_push_origin,
-            log_thought,
-            finish_task,
-        ]
+        # Tool-Sets
+        read_tools = [list_files, read_file]
+        write_tools = [write_to_file, git_push_origin]
+        base_tools = [log_thought, finish_task]
+
+        analyst_tools = mcp_tools + read_tools + base_tools
+        coder_tools = mcp_tools + read_tools + write_tools + base_tools
 
         llm = get_llm_model(config)
 
-        # --- NODE: AGENT MIT RETRY LOGIK ---
-        async def agent_node(state: AgentState):
-            # Basis-Prompt beim ersten Mal oder immer?
-            # Wir bauen ihn hier frisch zusammen, falls wir injizieren müssen.
-            # Da 'messages' die History ist, hängen wir den System Prompt virtuell davor.
-
-            system_msg = SystemMessage(
-                content=SINGLE_AGENT_SYSTEM.format(work_dir=work_dir, repo_url=repo_url)
-            )
-            current_messages = [system_msg] + state["messages"]
-
-            # Start: Wir lassen ihm Freiheit ("auto")
-            current_tool_choice = "auto"
-
+        # --- HELPER: ROBUST INVOKE ---
+        # Wir kapseln den LLM-Aufruf in eine Helper-Funktion mit Retry & Injection,
+        # damit wir das nicht 3x kopieren müssen.
+        async def robust_llm_invoke(chain, messages, node_name):
             for attempt in range(3):
                 try:
-                    # Binden mit aktueller Strategie
-                    chain = llm.bind_tools(all_tools, tool_choice=current_tool_choice)
+                    response = await chain.ainvoke(messages)
 
-                    # Invoke
-                    response = await chain.ainvoke(current_messages)
-
-                    # Analyse des Ergebnisses
                     has_content = bool(response.content)
-                    # Bei Mistral kann tool_calls leer sein oder None
                     t_calls = getattr(response, "tool_calls", [])
                     has_tool_calls = bool(t_calls)
 
-                    # 1. GÜLTIG: Inhalt oder Tools
                     if has_content or has_tool_calls:
                         logger.info(
-                            f"\n=== AGENT RESPONSE (Attempt {attempt + 1}) ===\nContent: '{response.content}'\nTool Calls: {t_calls}\n=========================="
+                            f"\n=== {node_name} RESPONSE (Attempt {attempt + 1}) ===\nContent: '{response.content}'\nTool Calls: {t_calls}\n============================"
                         )
-                        return {"messages": [response]}
+                        return response
 
-                    # 2. UNGÜLTIG: Leere Antwort (Der Freeze)
+                    # Empty Response Handling
                     logger.warning(
-                        f"Attempt {attempt + 1}: Empty response detected. Escalating strategy..."
+                        f"{node_name}: Empty response (Attempt {attempt + 1}). Injecting prompt..."
                     )
-
-                    # Strategie-Wechsel: Zwang ("any") + Injection
-                    current_tool_choice = "any"
-
-                    # Wir simulieren, dass der Agent "fertig gedacht" hat.
-                    current_messages.append(
-                        AIMessage(
-                            content="I have analyzed the files and planned the changes. I am ready to write the code."
-                        )
-                    )
-                    # Wir geben den Befehl.
-                    current_messages.append(
+                    messages.append(AIMessage(content="Thinking..."))
+                    messages.append(
                         HumanMessage(
-                            content="Good. STOP THINKING. Call 'write_to_file' NOW with the complete content."
+                            content="ERROR: Empty response. Please USE A TOOL (log_thought, write_to_file, etc.)!"
                         )
                     )
 
                 except Exception as e:
-                    logger.error(f"LLM Error (Attempt {attempt + 1}): {e}")
+                    logger.error(
+                        f"LLM Error in {node_name} (Attempt {attempt + 1}): {e}"
+                    )
 
-            # Fallback nach 3 Versuchen
-            logger.error("Agent stuck after 3 attempts. Forcing finish.")
+            # Fallback nach 3 Fehlern
+            logger.error(f"{node_name} stuck. Returning fallback.")
+            return AIMessage(
+                content="Stuck.",
+                tool_calls=[
+                    {
+                        "name": "finish_task",
+                        "args": {"summary": "Agent stuck in empty loop."},
+                        "id": "call_emergency",
+                        "type": "tool_call",
+                    }
+                ],
+            )
+
+        # --- NODES ---
+
+        async def router_node(state: AgentState):
+            messages = state["messages"]
+            response = await llm.ainvoke(
+                [SystemMessage(content=ROUTER_SYSTEM)] + messages
+            )
+
+            # Robustes Parsing
+            raw = response.content
+            if isinstance(raw, list):
+                txt = "".join(
+                    [x if isinstance(x, str) else x.get("text", "") for x in raw]
+                )
+            else:
+                txt = str(raw)
+
+            decision = txt.strip().upper()
+            if "BUG" in decision:
+                decision = "BUGFIXER"
+            elif "ANALYST" in decision:
+                decision = "ANALYST"
+            else:
+                decision = "CODER"
+
+            logger.info(f"Router decided: {decision}")
+            return {"next_step": decision}
+
+        async def coder_node(state: AgentState):
+            sys_msg = f"{CODER_SYSTEM}\nRepo: {repo_url}\n\nREMINDER: Use 'log_thought' to plan. Use 'write_to_file' to act."
+            messages = [SystemMessage(content=sys_msg)] + state["messages"]
+            chain = llm.bind_tools(coder_tools, tool_choice="auto")
+
+            response = await robust_llm_invoke(chain, messages, "CODER")
+            return {"messages": [response]}
+
+        async def bugfixer_node(state: AgentState):
+            sys_msg = f"{BUGFIXER_SYSTEM}\nRepo: {repo_url}\n\nREMINDER: Use 'log_thought' to plan."
+            messages = [SystemMessage(content=sys_msg)] + state["messages"]
+            chain = llm.bind_tools(
+                coder_tools, tool_choice="auto"
+            )  # Bugfixer braucht Coder Tools
+
+            response = await robust_llm_invoke(chain, messages, "BUGFIXER")
+            return {"messages": [response]}
+
+        async def analyst_node(state: AgentState):
+            sys_msg = f"{ANALYST_SYSTEM}\nRepo: {repo_url}"
+            messages = [SystemMessage(content=sys_msg)] + state["messages"]
+            chain = llm.bind_tools(analyst_tools)
+
+            # Analyst braucht oft keinen Retry Loop für Tools, da er chatten darf.
+            response = await chain.ainvoke(messages)
+            return {"messages": [response]}
+
+        async def correction_node(state: AgentState):
+            logger.warning("Agent chatted instead of working. Nudging...")
             return {
                 "messages": [
-                    AIMessage(
-                        content="Stuck.",
-                        tool_calls=[
-                            {
-                                "name": "finish_task",
-                                "args": {"summary": "Agent stuck in empty loop."},
-                                "id": "call_emergency_exit",
-                                "type": "tool_call",
-                            }
-                        ],
+                    HumanMessage(
+                        content="That's a good plan/analysis. Now please EXECUTE it using a TOOL (write_to_file, etc.)."
                     )
                 ]
             }
 
-        # --- NODE: TOOLS ---
-        tool_node = ToolNode(all_tools)
+        tool_node = ToolNode(coder_tools)  # Shared Tool Node
 
         # --- GRAPH ---
         workflow = StateGraph(AgentState)
-        workflow.add_node("agent", agent_node)
+        workflow.add_node("router", router_node)
+        workflow.add_node("coder", coder_node)
+        workflow.add_node("bugfixer", bugfixer_node)
+        workflow.add_node("analyst", analyst_node)
         workflow.add_node("tools", tool_node)
+        workflow.add_node("correction", correction_node)
 
-        workflow.set_entry_point("agent")
+        workflow.set_entry_point("router")
 
-        # Entscheidung: Tools oder Ende?
-        def should_continue(state):
+        # Routing
+        def route_after_router(state):
+            step = state["next_step"]
+            if step == "BUGFIXER":
+                return "bugfixer"
+            elif step == "ANALYST":
+                return "analyst"
+            return "coder"
+
+        workflow.add_conditional_edges("router", route_after_router)
+
+        # Exit Logic
+        def check_exit(state):
+            last_msg = state["messages"][-1]
+            if not isinstance(last_msg, AIMessage):
+                return "correction"
+
+            if hasattr(last_msg, "tool_calls") and last_msg.tool_calls:
+                for tool_call in last_msg.tool_calls:
+                    if tool_call["name"] == "finish_task":
+                        return END
+                return "tools"
+
+            # Coder/Bugfixer sollten nicht chatten -> Correction
+            return "correction"
+
+        # Analyst darf chatten -> Exit wenn keine Tools
+        def check_exit_analyst(state):
             last_msg = state["messages"][-1]
             if hasattr(last_msg, "tool_calls") and last_msg.tool_calls:
-                for tc in last_msg.tool_calls:
-                    if tc["name"] == "finish_task":
-                        return END
                 return "tools"
             return END
 
-        workflow.add_conditional_edges("agent", should_continue)
-        workflow.add_edge("tools", "agent")
+        workflow.add_conditional_edges("coder", check_exit)
+        workflow.add_conditional_edges("bugfixer", check_exit)
+        workflow.add_conditional_edges("analyst", check_exit_analyst)
+
+        # Back-Routing
+        def route_back(state):
+            step = state.get("next_step", "CODER")
+            if step == "BUGFIXER":
+                return "bugfixer"
+            elif step == "ANALYST":
+                return "analyst"
+            return "coder"
+
+        workflow.add_conditional_edges("correction", route_back)
+        workflow.add_conditional_edges("tools", route_back)
 
         app_graph = workflow.compile()
 
         logger.info(
-            f"Task starts (Single Agent V12 - Anti-Freeze) for Task {task['id']}..."
+            f"Task starts (Multi-Agent V14 - High Tokens) for Task {task['id']}..."
         )
-
-        # Startnachricht (Nur User Task, System Prompt kommt im Node dazu)
-        initial_msg = [
-            HumanMessage(
-                content=f"Task: {task.get('title')}\nDescription: {task.get('description')}"
-            )
-        ]
 
         final_state = await app_graph.ainvoke(
-            {"messages": initial_msg}, {"recursion_limit": 50}
+            {
+                "messages": [
+                    HumanMessage(
+                        content=f"Task: {task.get('title')}\nDescription: {task.get('description')}"
+                    )
+                ],
+                "next_step": "",
+            },
+            {"recursion_limit": 50},
         )
 
-        # Output
         last_msg = final_state["messages"][-1]
-        final_output = "Task finished."
+        final_output = "Agent finished."
         if hasattr(last_msg, "tool_calls") and last_msg.tool_calls:
             for tc in last_msg.tool_calls:
                 if tc["name"] == "finish_task":
@@ -195,8 +269,6 @@ async def process_task_with_langgraph(task, config):
 
 
 def run_agent_cycle(app):
-    from constants import TASK_STATE_IN_REVIEW, TASK_STATE_OPEN
-
     with app.app_context():
         try:
             config = AgentConfig.query.first()
@@ -217,20 +289,16 @@ def run_agent_cycle(app):
 
             task = tasks[0]
             logger.info(f"Processing Task ID: {task['id']}")
-            connector.post_comment(task["id"], "🤖 Agent V12 (Anti-Freeze) started...")
+            connector.post_comment(
+                task["id"], "🤖 Agent V14 (Multi-Agent + 8k Tokens) started..."
+            )
 
             try:
                 output = asyncio.run(process_task_with_langgraph(task, config))
-
                 limit = 4000
-                if len(output) > limit:
-                    short_output = output[:limit] + f"\n\n... (truncated)"
-                else:
-                    short_output = output
-
+                short_output = output[:limit] + "..." if len(output) > limit else output
                 final_comment = f"🤖 Job Done.\n\nSummary:\n{short_output}"
                 new_status = TASK_STATE_IN_REVIEW
-
             except Exception as e:
                 logger.error(f"Agent failed: {e}", exc_info=True)
                 final_comment = f"💥 Agent crashed: {str(e)}"
@@ -239,7 +307,6 @@ def run_agent_cycle(app):
             connector.post_comment(task["id"], final_comment)
             if new_status == TASK_STATE_IN_REVIEW:
                 connector.update_status(task["id"], new_status)
-
             logger.info("Agent cycle finished.")
 
         except Exception as e:
