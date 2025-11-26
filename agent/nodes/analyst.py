@@ -3,6 +3,7 @@ import logging
 from langchain_core.messages import SystemMessage
 
 from agent.state import AgentState
+from agent.utils import sanitize_response
 
 logger = logging.getLogger(__name__)
 
@@ -39,7 +40,7 @@ def create_analyst_node(llm, tools, repo_url):
         chain = llm.bind_tools(tools, tool_choice="auto")
 
         response = await chain.ainvoke(current_messages)
-
+        response = sanitize_response(response)
         logger.info(
             f"\n=== ANALYST RESPONSE ===\nContent: '{response.content}'\nTool Calls: {response.tool_calls}\n============================"
         )

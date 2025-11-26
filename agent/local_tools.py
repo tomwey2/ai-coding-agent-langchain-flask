@@ -32,17 +32,19 @@ def finish_task(summary: str):
 def read_file(filepath: str):
     """
     Reads the content of a file.
-    Use this to analyze existing code or config files.
     """
     try:
         base_dir = "/app/work_dir"
-        full_path = os.path.join(base_dir, filepath)
+        # FIX: Führende Slashes entfernen, um absolute Pfade zu verhindern
+        clean_path = filepath.lstrip("/")
+        full_path = os.path.join(base_dir, clean_path)
 
+        # Security
         if not os.path.abspath(full_path).startswith(base_dir):
             return f"ERROR: Access denied."
 
         if not os.path.exists(full_path):
-            return f"ERROR: File {filepath} does not exist."
+            return f"ERROR: File {clean_path} does not exist. (Current dir: {os.listdir(base_dir)})"
 
         with open(full_path, "r", encoding="utf-8") as f:
             content = f.read()
@@ -57,48 +59,44 @@ def read_file(filepath: str):
 def list_files(directory: str = "."):
     """
     Lists files in a directory (recursive).
-    Useful to understand the project structure.
     """
     try:
         base_dir = "/app/work_dir"
-        target_dir = os.path.join(base_dir, directory)
-
+        clean_dir = directory.lstrip("/")
+        target_dir = os.path.join(base_dir, clean_dir)
         if not os.path.abspath(target_dir).startswith(base_dir):
-            return f"ERROR: Access denied."
+            return "Access denied"
 
         file_list = []
         for root, dirs, files in os.walk(target_dir):
-            # .git ignorieren
             if ".git" in root:
                 continue
             for file in files:
-                # Relativen Pfad berechnen
                 rel_path = os.path.relpath(os.path.join(root, file), base_dir)
                 file_list.append(rel_path)
-
         return "\n".join(file_list) if file_list else "No files found."
     except Exception as e:
-        return f"ERROR listing files: {str(e)}"
+        return str(e)
 
 
 @tool
 def write_to_file(filepath: str, content: str):
     """
     Writes content to a file.
-    Use this to create new files or overwrite existing ones.
     """
     try:
         base_dir = "/app/work_dir"
-        full_path = os.path.join(base_dir, filepath)
+        # FIX: Führende Slashes entfernen
+        clean_path = filepath.lstrip("/")
+        full_path = os.path.join(base_dir, clean_path)
 
-        # Security Check
         if not os.path.abspath(full_path).startswith(base_dir):
-            return f"ERROR: Access denied. Cannot write outside of {base_dir}"
+            return f"ERROR: Access denied."
 
         os.makedirs(os.path.dirname(full_path), exist_ok=True)
         with open(full_path, "w", encoding="utf-8") as f:
             f.write(content)
-        return f"Successfully wrote to {filepath}"
+        return f"Successfully wrote to {clean_path}"
     except Exception as e:
         return f"ERROR writing file: {str(e)}"
 
