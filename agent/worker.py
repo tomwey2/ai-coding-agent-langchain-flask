@@ -2,12 +2,9 @@ import asyncio
 import logging
 import os
 
-# LangChain / LangGraph
-from typing import Annotated, TypedDict
-
-from langchain_core.messages import AIMessage, BaseMessage, HumanMessage, SystemMessage
+# LangGraph
+from langchain_core.messages import AIMessage, HumanMessage
 from langgraph.graph import END, StateGraph
-from langgraph.graph.message import add_messages
 from langgraph.prebuilt import ToolNode
 
 from agent.llm_setup import get_llm_model
@@ -23,9 +20,16 @@ from agent.local_tools import (
     write_to_file,
 )
 from agent.mcp_adapter import McpGitAdapter
+from agent.nodes.analyst import create_analyst_node
+from agent.nodes.bugfixer import create_bugfixer_node
+from agent.nodes.coder import create_coder_node
+from agent.nodes.correction import create_correction_node
 
-# Prompts
-from agent.prompts import ANALYST_SYSTEM, BUGFIXER_SYSTEM, CODER_SYSTEM, ROUTER_SYSTEM
+# NEU: Imports aus den Nodes
+from agent.nodes.router import create_router_node
+
+# State
+from agent.state import AgentState
 from agent.task_connector import TaskAppConnector
 
 # Constants
@@ -34,11 +38,6 @@ from extensions import db
 from models import AgentConfig
 
 logger = logging.getLogger(__name__)
-
-
-class AgentState(TypedDict):
-    messages: Annotated[list[BaseMessage], add_messages]
-    next_step: str
 
 
 async def process_task_with_langgraph(task, config):
@@ -53,7 +52,7 @@ async def process_task_with_langgraph(task, config):
         logger.info("MCP Git Server connected.")
         mcp_tools = await mcp_adapter.get_langchain_tools()
 
-        # Tool-Sets
+        # 1. Tool-Sets definieren
         read_tools = [list_files, read_file]
         write_tools = [write_to_file, git_push_origin]
         base_tools = [log_thought, finish_task]
@@ -63,122 +62,17 @@ async def process_task_with_langgraph(task, config):
 
         llm = get_llm_model(config)
 
-        # --- HELPER: ROBUST INVOKE ---
-        # Wir kapseln den LLM-Aufruf in eine Helper-Funktion mit Retry & Injection,
-        # damit wir das nicht 3x kopieren müssen.
-        async def robust_llm_invoke(chain, messages, node_name):
-            for attempt in range(3):
-                try:
-                    response = await chain.ainvoke(messages)
+        # 2. Nodes erstellen (Factories aufrufen)
+        router_node = create_router_node(llm)
+        coder_node = create_coder_node(llm, coder_tools, repo_url)
+        bugfixer_node = create_bugfixer_node(llm, coder_tools, repo_url)
+        analyst_node = create_analyst_node(llm, analyst_tools, repo_url)
+        correction_node = create_correction_node()
+        tool_node = ToolNode(
+            coder_tools
+        )  # Coder hat die meisten Tools, ToolNode führt einfach aus
 
-                    has_content = bool(response.content)
-                    t_calls = getattr(response, "tool_calls", [])
-                    has_tool_calls = bool(t_calls)
-
-                    if has_content or has_tool_calls:
-                        logger.info(
-                            f"\n=== {node_name} RESPONSE (Attempt {attempt + 1}) ===\nContent: '{response.content}'\nTool Calls: {t_calls}\n============================"
-                        )
-                        return response
-
-                    # Empty Response Handling
-                    logger.warning(
-                        f"{node_name}: Empty response (Attempt {attempt + 1}). Injecting prompt..."
-                    )
-                    messages.append(AIMessage(content="Thinking..."))
-                    messages.append(
-                        HumanMessage(
-                            content="ERROR: Empty response. Please USE A TOOL (log_thought, write_to_file, etc.)!"
-                        )
-                    )
-
-                except Exception as e:
-                    logger.error(
-                        f"LLM Error in {node_name} (Attempt {attempt + 1}): {e}"
-                    )
-
-            # Fallback nach 3 Fehlern
-            logger.error(f"{node_name} stuck. Returning fallback.")
-            return AIMessage(
-                content="Stuck.",
-                tool_calls=[
-                    {
-                        "name": "finish_task",
-                        "args": {"summary": "Agent stuck in empty loop."},
-                        "id": "call_emergency",
-                        "type": "tool_call",
-                    }
-                ],
-            )
-
-        # --- NODES ---
-
-        async def router_node(state: AgentState):
-            messages = state["messages"]
-            response = await llm.ainvoke(
-                [SystemMessage(content=ROUTER_SYSTEM)] + messages
-            )
-
-            # Robustes Parsing
-            raw = response.content
-            if isinstance(raw, list):
-                txt = "".join(
-                    [x if isinstance(x, str) else x.get("text", "") for x in raw]
-                )
-            else:
-                txt = str(raw)
-
-            decision = txt.strip().upper()
-            if "BUG" in decision:
-                decision = "BUGFIXER"
-            elif "ANALYST" in decision:
-                decision = "ANALYST"
-            else:
-                decision = "CODER"
-
-            logger.info(f"Router decided: {decision}")
-            return {"next_step": decision}
-
-        async def coder_node(state: AgentState):
-            sys_msg = f"{CODER_SYSTEM}\nRepo: {repo_url}\n\nREMINDER: Use 'log_thought' to plan. Use 'write_to_file' to act."
-            messages = [SystemMessage(content=sys_msg)] + state["messages"]
-            chain = llm.bind_tools(coder_tools, tool_choice="auto")
-
-            response = await robust_llm_invoke(chain, messages, "CODER")
-            return {"messages": [response]}
-
-        async def bugfixer_node(state: AgentState):
-            sys_msg = f"{BUGFIXER_SYSTEM}\nRepo: {repo_url}\n\nREMINDER: Use 'log_thought' to plan."
-            messages = [SystemMessage(content=sys_msg)] + state["messages"]
-            chain = llm.bind_tools(
-                coder_tools, tool_choice="auto"
-            )  # Bugfixer braucht Coder Tools
-
-            response = await robust_llm_invoke(chain, messages, "BUGFIXER")
-            return {"messages": [response]}
-
-        async def analyst_node(state: AgentState):
-            sys_msg = f"{ANALYST_SYSTEM}\nRepo: {repo_url}"
-            messages = [SystemMessage(content=sys_msg)] + state["messages"]
-            chain = llm.bind_tools(analyst_tools)
-
-            # Analyst braucht oft keinen Retry Loop für Tools, da er chatten darf.
-            response = await chain.ainvoke(messages)
-            return {"messages": [response]}
-
-        async def correction_node(state: AgentState):
-            logger.warning("Agent chatted instead of working. Nudging...")
-            return {
-                "messages": [
-                    HumanMessage(
-                        content="That's a good plan/analysis. Now please EXECUTE it using a TOOL (write_to_file, etc.)."
-                    )
-                ]
-            }
-
-        tool_node = ToolNode(coder_tools)  # Shared Tool Node
-
-        # --- GRAPH ---
+        # 3. Graph aufbauen
         workflow = StateGraph(AgentState)
         workflow.add_node("router", router_node)
         workflow.add_node("coder", coder_node)
@@ -189,7 +83,7 @@ async def process_task_with_langgraph(task, config):
 
         workflow.set_entry_point("router")
 
-        # Routing
+        # 4. Routing Logik (Edges)
         def route_after_router(state):
             step = state["next_step"]
             if step == "BUGFIXER":
@@ -200,7 +94,6 @@ async def process_task_with_langgraph(task, config):
 
         workflow.add_conditional_edges("router", route_after_router)
 
-        # Exit Logic
         def check_exit(state):
             last_msg = state["messages"][-1]
             if not isinstance(last_msg, AIMessage):
@@ -211,22 +104,19 @@ async def process_task_with_langgraph(task, config):
                     if tool_call["name"] == "finish_task":
                         return END
                 return "tools"
-
-            # Coder/Bugfixer sollten nicht chatten -> Correction
             return "correction"
 
-        # Analyst darf chatten -> Exit wenn keine Tools
+        workflow.add_conditional_edges("coder", check_exit)
+        workflow.add_conditional_edges("bugfixer", check_exit)
+
         def check_exit_analyst(state):
             last_msg = state["messages"][-1]
             if hasattr(last_msg, "tool_calls") and last_msg.tool_calls:
                 return "tools"
             return END
 
-        workflow.add_conditional_edges("coder", check_exit)
-        workflow.add_conditional_edges("bugfixer", check_exit)
         workflow.add_conditional_edges("analyst", check_exit_analyst)
 
-        # Back-Routing
         def route_back(state):
             step = state.get("next_step", "CODER")
             if step == "BUGFIXER":
@@ -238,11 +128,10 @@ async def process_task_with_langgraph(task, config):
         workflow.add_conditional_edges("correction", route_back)
         workflow.add_conditional_edges("tools", route_back)
 
+        # 5. Compile & Run
         app_graph = workflow.compile()
 
-        logger.info(
-            f"Task starts (Multi-Agent V14 - High Tokens) for Task {task['id']}..."
-        )
+        logger.info(f"Task starts (Multi-Agent Refactored) for Task {task['id']}...")
 
         final_state = await app_graph.ainvoke(
             {
@@ -256,18 +145,23 @@ async def process_task_with_langgraph(task, config):
             {"recursion_limit": 50},
         )
 
+        # 6. Result Extraction
         last_msg = final_state["messages"][-1]
         final_output = "Agent finished."
-        if hasattr(last_msg, "tool_calls") and last_msg.tool_calls:
-            for tc in last_msg.tool_calls:
-                if tc["name"] == "finish_task":
-                    final_output = tc["args"].get("summary", "Done.")
-        elif last_msg.content:
-            final_output = str(last_msg.content)
+
+        if isinstance(last_msg, AIMessage):
+            if last_msg.tool_calls:
+                for tool_call in last_msg.tool_calls:
+                    if tool_call["name"] == "finish_task":
+                        final_output = tool_call["args"].get("summary", "No summary.")
+                        break
+            elif last_msg.content:
+                final_output = str(last_msg.content)
 
         return final_output
 
 
+# run_agent_cycle bleibt exakt gleich...
 def run_agent_cycle(app):
     with app.app_context():
         try:
@@ -289,9 +183,7 @@ def run_agent_cycle(app):
 
             task = tasks[0]
             logger.info(f"Processing Task ID: {task['id']}")
-            connector.post_comment(
-                task["id"], "🤖 Agent V14 (Multi-Agent + 8k Tokens) started..."
-            )
+            connector.post_comment(task["id"], "🤖 Agent V15 (Refactored) started...")
 
             try:
                 output = asyncio.run(process_task_with_langgraph(task, config))
