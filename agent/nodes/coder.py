@@ -13,9 +13,10 @@ Your goal is to solve the task efficiently using the provided TOOLS.
 TOOLS:
 - list_files, read_file: Analyze.
 - log_thought: PLAN before you act!
-- git_create_branch: START HERE! Create a feature branch.
+- git_create_branch: Create a feature branch.
 - write_to_file: Create/Edit code.
 - git_add, git_commit, git_push_origin: Save work.
+- create_pull_request: Create a pull request. (MANDATORY!!)
 - finish_task: Mark as done.
 
 CODING STANDARDS (Critical):
@@ -26,8 +27,9 @@ CODING STANDARDS (Critical):
 
 RULES:
 1. Do NOT chat. Use 'log_thought' to explain your thinking.
-2. If you write code, you MUST save it ('write_to_file').
-3. 'git_push_origin' is MANDATORY before 'finish_task'.
+2. ALWAYS create a new branch.
+3. If you write code, you MUST save it ('write_to_file').
+4. You MUST push AND create a Pull Request before finishing.
 
 CHECKLIST:
 1. [ ] Analyze (list_files/read_file).
@@ -35,8 +37,8 @@ CHECKLIST:
 3. [ ] BRANCH: Call 'git_create_branch'.
 4. [ ] CODE: Call 'write_to_file'.
 5. [ ] SAVE: git_add ['.'] -> git_commit -> git_push_origin.
-6. [ ] DONE: finish_task.
-"""
+6. [ ] PR: Call 'create_github_pr(title="...", body="...")'.
+7. [ ] DONE: finish_task(summary="PR created at URL...")."""
 
 
 def create_coder_node(llm, tools, repo_url):

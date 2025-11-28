@@ -1,7 +1,9 @@
 import logging
 import os
+import re
 import subprocess
 
+import requests
 from langchain_core.tools import tool
 
 logger = logging.getLogger(__name__)
@@ -158,6 +160,68 @@ def git_push_origin():
     except subprocess.CalledProcessError as e:
         safe_stderr = e.stderr.replace(token, "***") if token else e.stderr
         return f"Push FAILED:\n{safe_stderr}"
+    except Exception as e:
+        return f"ERROR: {str(e)}"
+
+
+@tool
+def create_github_pr(title: str, body: str):
+    """
+    Creates a Pull Request on GitHub for the current branch.
+    Target is usually 'main' or 'master'.
+    """
+    try:
+        token = os.environ.get("GITHUB_TOKEN")
+        if not token:
+            return "ERROR: GITHUB_TOKEN missing."
+
+        work_dir = "/app/work_dir"
+
+        # 1. Repo-Infos aus der Remote-URL parsen
+        # URL Formate: https://github.com/OWNER/REPO.git oder mit Token
+        remote_url = subprocess.check_output(
+            ["git", "remote", "get-url", "origin"], cwd=work_dir, text=True
+        ).strip()
+
+        # Regex um Owner und Repo zu finden (ignoriert Token und .git am Ende)
+        match = re.search(r"github\.com[:/](.+)/(.+?)(\.git)?$", remote_url)
+        if not match:
+            return f"ERROR: Could not parse Owner/Repo from URL: {remote_url}"
+
+        owner, repo = match.group(1), match.group(2)
+
+        # 2. Aktuellen Branch Namen holen
+        current_branch = subprocess.check_output(
+            ["git", "rev-parse", "--abbrev-ref", "HEAD"], cwd=work_dir, text=True
+        ).strip()
+
+        if current_branch in ["main", "master"]:
+            return "ERROR: You are on main/master. Create a feature branch first!"
+
+        # 3. API Request an GitHub senden
+        url = f"https://api.github.com/repos/{owner}/{repo}/pulls"
+        headers = {
+            "Authorization": f"token {token}",
+            "Accept": "application/vnd.github.v3+json",
+        }
+
+        # Wir versuchen erst 'main', wenn das nicht geht 'master' als Ziel
+        payload = {"title": title, "body": body, "head": current_branch, "base": "main"}
+
+        response = requests.post(url, json=payload, headers=headers)
+
+        # Fallback: Wenn 'main' nicht existiert (422 Error), probiere 'master'
+        if response.status_code == 422:
+            logger.info("Target 'main' not found, trying 'master'...")
+            payload["base"] = "master"
+            response = requests.post(url, json=payload, headers=headers)
+
+        if response.status_code == 201:
+            pr_url = response.json().get("html_url")
+            return f"SUCCESS: Pull Request created: {pr_url}"
+        else:
+            return f"ERROR creating PR: {response.status_code} - {response.text}"
+
     except Exception as e:
         return f"ERROR: {str(e)}"
 

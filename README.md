@@ -3,7 +3,7 @@
 ![Status](https://img.shields.io/badge/Status-POC-yellow)
 ![Tech](https://img.shields.io/badge/Built%20With-LangGraph%20%7C%20Mistral%20%7C%20MCP-blue)
 
-An autonomous, containerized software engineer that lives in your Docker environment. It connects to your task management system, picks up tickets, writes code, fixes bugs, and pushes changes to GitHub — completely unsupervised.
+Autonomous, containerized software engineers that live in your Docker environment. They connect to your task management system, pick up tickets, write code, fixe bugs, and push changes to GitHub — completely unsupervised.
 
 ## 🌟 Key Features
 
