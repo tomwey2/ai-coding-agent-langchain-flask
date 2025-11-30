@@ -1,6 +1,5 @@
 import asyncio
 import logging
-import os
 
 # LangGraph
 from langchain_core.messages import AIMessage, HumanMessage
@@ -36,7 +35,6 @@ from agent.task_connector import TaskAppConnector
 
 # Constants
 from constants import TASK_STATE_IN_REVIEW, TASK_STATE_OPEN
-from extensions import db
 from models import AgentConfig
 
 logger = logging.getLogger(__name__)
@@ -102,7 +100,11 @@ async def process_task_with_langgraph(task, config):
                 return "analyst"
             return "coder"
 
-        workflow.add_conditional_edges("router", route_after_router)
+        workflow.add_conditional_edges(
+            "router",
+            route_after_router,
+            {"coder": "coder", "bugfixer": "bugfixer", "analyst": "analyst"},
+        )
 
         # Exit-Logik für Coder/Bugfixer (Tools oder Correction)
         def check_exit(state):
@@ -117,8 +119,16 @@ async def process_task_with_langgraph(task, config):
                 return "tools"
             return "correction"
 
-        workflow.add_conditional_edges("coder", check_exit)
-        workflow.add_conditional_edges("bugfixer", check_exit)
+        workflow.add_conditional_edges(
+            "coder",
+            check_exit,
+            {"tools": "tools", "correction": "correction", END: END},
+        )
+        workflow.add_conditional_edges(
+            "bugfixer",
+            check_exit,
+            {"tools": "tools", "correction": "correction", END: END},
+        )
 
         # Exit-Logik für Analyst (Tools oder Ende)
         def check_exit_analyst(state):
@@ -132,7 +142,9 @@ async def process_task_with_langgraph(task, config):
             # damit er nicht loopt. Besser wäre, er nutzt finish_task.
             return END
 
-        workflow.add_conditional_edges("analyst", check_exit_analyst)
+        workflow.add_conditional_edges(
+            "analyst", check_exit_analyst, {"tools": "tools", END: END}
+        )
 
         # Routing zurück zum jeweiligen Agenten
         def route_back(state):
@@ -143,8 +155,16 @@ async def process_task_with_langgraph(task, config):
                 return "analyst"
             return "coder"
 
-        workflow.add_conditional_edges("correction", route_back)
-        workflow.add_conditional_edges("tools", route_back)
+        workflow.add_conditional_edges(
+            "correction",
+            route_back,
+            {"coder": "coder", "bugfixer": "bugfixer", "analyst": "analyst"},
+        )
+        workflow.add_conditional_edges(
+            "tools",
+            route_back,
+            {"coder": "coder", "bugfixer": "bugfixer", "analyst": "analyst"},
+        )
 
         # 5. Compile & Run
         app_graph = workflow.compile()
