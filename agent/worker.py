@@ -148,7 +148,7 @@ async def process_task_with_langgraph(task, config):
 
         # 5. Compile & Run
         app_graph = workflow.compile()
-
+        print(app_graph.get_graph().draw_ascii())
         logger.info(f"Task starts (Multi-Agent Modular) for Task {task['id']}...")
 
         final_state = await app_graph.ainvoke(
