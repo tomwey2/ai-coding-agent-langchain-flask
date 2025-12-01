@@ -18,7 +18,7 @@ security, and more. Every developer is a vital link in the value chain.
 
 But what happens when resources become a bottleneck? **The solution? Simply augment your team with artificial developers working autonomously—seamlessly integrated via Jira tickets and pull requests.**
 
-<img src="./process.png" title="AI Coding Agent Process" alt="AI Coding Agent Process" width="70%">
+<img src="./process.png" title="AI Coding Agent Process" alt="AI Coding Agent Process" width="80%">
 
 ## Key Features
 
@@ -45,19 +45,21 @@ Key milestones for professionalization include:
 
 ## Architecture
 
-The system is built upon a stateful, multi-agent architecture powered by LangGraph. Instead of a monolithic process, the execution flow is intelligently orchestrated across specialized nodes:
+The system is built upon a stateful, multi-agent architecture powered by LangGraph. Instead of a monolithic process, the execution flow is intelligently orchestrated across specialized nodes.
 
-* **Router Node:** Acts as the entry point. It analyzes the incoming ticket context and determines the optimal execution strategy by selecting the appropriate specialist.
+<img src="./langgraph.png" title="LangGraph Architecture" alt="LangGraph Architecture" width="80%">
+
+* **Router Node:** The Routing workflows process inputs and then directs them to context-specific agents. It acts as the entry point. It analyzes the incoming ticket context and determines the optimal execution strategy by selecting the appropriate specialist. 
 
 * **Specialist Nodes (Agents):**
 
-👨‍💻 - Coder: Focuses on implementing new features and writing complex logic.
+👨‍💻 - **Coder:** Focuses on implementing new features and writing complex logic. This includes clean code strategies and a focus on modular, readable, and robust code.
 
-🐛 - Bugfixer: Diagnoses stack traces and applies targeted, minimal fixes to resolve errors.
+🐛 - **Bugfixer:** Diagnoses stack traces and applies targeted, minimal fixes to resolve errors.
 
-🧐 - Analyst: Operates in read-only mode to perform code reviews, answer queries, or map out dependencies.
+🧐 - **Analyst:** Operates in read-only mode to perform code reviews, answer queries, or map out dependencies.
 
-* **Hybrid Tool Execution:** The agents utilize a dual-layer toolset: the Model Context Protocol (MCP) for deep analysis and context retrieval, combined with Local Python execution for direct file I/O and Git operations.
+* **Hybrid Tool Execution:** The agents utilize a dual-layer toolset: the Model Context Protocol (MCP) for deep analysis and context retrieval, combined with Local Python execution for direct file I/O operations.
 
 * **Self-Correction Loop:** A dedicated control node monitors agent behavior. If an agent fails to execute a tool correctly or provides empty responses, this loop intervenes to force a retry and realign the workflow.
 
