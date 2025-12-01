@@ -53,11 +53,11 @@ The system is built upon a stateful, multi-agent architecture powered by LangGra
 
 * **Specialist Nodes (Agents):**
 
-👨‍💻 - **Coder:** Focuses on implementing new features and writing complex logic. This includes clean code strategies and a focus on modular, readable, and robust code.
+  - **Coder:** Focuses on implementing new features and writing complex logic. This includes clean code strategies and a focus on modular, readable, and robust code.
 
-🐛 - **Bugfixer:** Diagnoses stack traces and applies targeted, minimal fixes to resolve errors.
+  - **Bugfixer:** Diagnoses stack traces and applies targeted, minimal fixes to resolve errors.
 
-🧐 - **Analyst:** Operates in read-only mode to perform code reviews, answer queries, or map out dependencies.
+  - **Analyst:** Operates in read-only mode to perform code reviews, answer queries, or map out dependencies.
 
 * **Hybrid Tool Execution:** The agents utilize a dual-layer toolset: the Model Context Protocol (MCP) for deep analysis and context retrieval, combined with Local Python execution for direct file I/O operations.
 
