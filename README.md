@@ -89,7 +89,7 @@ The system is built upon a stateful, multi-agent architecture powered by LangGra
 ### 1. Build the Image
 
 ```bash
-docker build -t coding-agent .
+docker build -t ai-coding-agent .
 ```
 
 ### 2. Run the Container
@@ -101,8 +101,12 @@ docker run \
   -e GITHUB_TOKEN="your_github_pat" \
   -p 5000:5000 \
   -v $(pwd)/instance:/app/instance \
-  coding-agent
+  --name ai-coding-agent \
+  ai-coding-agent
 ```
 
 ## License
 [Apache License 2.0](LICENSE)
+
+## POC Results
+[Results of the First POC Run](poc-results.md)
