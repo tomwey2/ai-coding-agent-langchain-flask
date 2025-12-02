@@ -109,4 +109,4 @@ docker run \
 [Apache License 2.0](LICENSE)
 
 ## POC Results
-[Results of the First POC Run](poc-results.md)
+[Results of the First POC](poc-results.md)
