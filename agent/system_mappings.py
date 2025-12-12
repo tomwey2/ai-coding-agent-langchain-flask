@@ -9,33 +9,48 @@ import logging
 logger = logging.getLogger(__name__)
 
 
-def extract_cards(data):
+def parse_trello_response(data):
     """
-    Extracts all cards from a Trello board object into a flat list.
-    The data from read_board is a dictionary, where the 'lists' key
-    contains the lists and their cards.
+    Robustly parses a Trello API response to extract a flat list of cards.
+    Handles responses that are board dictionaries or lists of cards.
     """
-    logger.info("Extracting data from Trello: %s", data)
-    if not isinstance(data, dict) or "lists" not in data:
+    logger.info(f"Trello response parser received data: {data}")
+
+    raw_cards = []
+    if isinstance(data, list):
+        # Data is already a list of cards
+        raw_cards = data
+    elif isinstance(data, dict):
+        # Check for 'cards' at the top level
+        if "cards" in data and isinstance(data["cards"], list):
+            raw_cards = data["cards"]
+        # If not, check for nested 'lists' containing 'cards'
+        elif "lists" in data and isinstance(data["lists"], list):
+            all_cards = []
+            for trello_list in data["lists"]:
+                if isinstance(trello_list, dict) and "cards" in trello_list:
+                    all_cards.extend(trello_list["cards"])
+            raw_cards = all_cards
+
+    if not raw_cards:
         return []
 
-    all_cards = []
-    for trello_list in data.get("lists", []):
-        if isinstance(trello_list, dict) and "cards" in trello_list:
-            logger.info("Extracting cards from list: %s", trello_list["cards"])
-            all_cards.extend(trello_list["cards"])
-    return all_cards
+    # Convert the raw card objects into our canonical task format
+    canonical_tasks = []
+    for card in raw_cards:
+        if isinstance(card, dict):
+            canonical_tasks.append(
+                {
+                    "id": card.get("id"),
+                    "title": card.get("name"),
+                    "description": card.get("desc"),
+                }
+            )
+    return canonical_tasks
 
 
 # A lambda function to parse the Trello card format into our canonical task format
-trello_response_parser = lambda data: [
-    {
-        "id": card.get("id"),
-        "title": card.get("name"),
-        "description": card.get("desc"),
-    }
-    for card in extract_cards(data)
-]
+trello_response_parser = parse_trello_response
 
 SYSTEM_DEFINITIONS = {
     "TRELLO": {

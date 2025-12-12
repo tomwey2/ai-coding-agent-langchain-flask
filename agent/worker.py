@@ -241,7 +241,7 @@ async def run_agent_cycle_async(app):
                 logger.info(f"Processing Task ID: {task['id']}")
 
                 await task_mcp.call_tool(
-                    "add_comment_to_card",
+                    "add_comment",
                     cardId=task["id"],
                     text="🤖 Agent processing started...",
                 )
@@ -265,13 +265,13 @@ async def run_agent_cycle_async(app):
                 # Try to comment on failure
                 if task and task.get("id"):
                     await task_mcp.call_tool(
-                        "add_comment_to_card", cardId=task["id"], text=final_comment
+                        "add_comment", cardId=task["id"], text=final_comment
                     )
 
             else:
                 if task and task.get("id"):
                     await task_mcp.call_tool(
-                        "add_comment_to_card", cardId=task["id"], text=final_comment
+                        "add_comment", cardId=task["id"], text=final_comment
                     )
 
 

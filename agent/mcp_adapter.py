@@ -1,3 +1,4 @@
+import json
 import os
 from contextlib import AsyncExitStack
 
@@ -67,12 +68,19 @@ class McpServerClient:
 
     async def call_tool(self, tool_name: str, **kwargs):
         """Ruft ein Tool direkt auf und gibt das rohe Ergebnis zurück."""
+        print(
+            f"DEBUG STEP 1 - START: Rufe Tool '{tool_name}' auf mit Argumenten: {kwargs}"
+        )
         if not self.session:
             raise RuntimeError("MCP Session not started.")
         try:
             # Führe den Tool-Aufruf über die MCP-Session aus
-            print(f"Calling tool '{tool_name}' with arguments: {kwargs}")
             result = await self.session.call_tool(tool_name, arguments=kwargs)
+
+            print(
+                f"DEBUG STEP 1 - SUCCESS: Tool hat geantwortet! Datentyp: {type(result)}"
+            )
+            print(f"DEBUG STEP 1 - RAW DATA PREVIEW: {str(result)[:500]}")
 
             # Überprüfe auf Fehler
             if result.isError:
@@ -82,19 +90,22 @@ class McpServerClient:
                 raise RuntimeError(f"Error calling tool '{tool_name}': {error_message}")
 
             # Extrahiere und gib den Inhalt zurück
-            # Wir nehmen hier an, dass der für uns relevante Inhalt im ersten Content-Block ist
-            # und ein JSON-Objekt ist, das direkt zurückgegeben werden kann.
             if result.content:
-                # Trello und andere Server senden oft JSON-Daten
-                if result.content[0].type == "application/json":
-                    return result.content[0].json
-                # Fallback für reinen Text
-                elif result.content[0].type == "text":
-                    return result.content[0].text
+                content_item = result.content[0]
+                if content_item.type == "application/json":
+                    return content_item.json
+                elif content_item.type == "text":
+                    try:
+                        # Attempt to parse the text as JSON
+                        return json.loads(content_item.text)
+                    except json.JSONDecodeError:
+                        # If it fails, return the raw text as a fallback
+                        return content_item.text
 
-            return None  # Kein Inhalt
+            return None
 
         except Exception as e:
+            print(f"DEBUG STEP 1 - ERROR: Tool-Aufruf gescheitert. Grund: {e}")
             raise RuntimeError(f"Failed to call tool '{tool_name}': {e}") from e
 
     def _convert_to_langchain_tool(self, tool_schema):
