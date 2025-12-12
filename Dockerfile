@@ -14,8 +14,9 @@ RUN apt-get update && apt-get install -y \
     npm \
     && rm -rf /var/lib/apt/lists/*
 
-# 2. 'uv' installieren
+# 2. 'uv' und 'tsx' installieren
 RUN pip install uv
+RUN npm install -g tsx
 
 # 3. Dependencies installieren
 COPY pyproject.toml uv.lock ./
@@ -23,12 +24,11 @@ COPY pyproject.toml uv.lock ./
 # Installiere Abhängigkeiten ins System-Python
 RUN uv sync --frozen --no-install-project
 
-# 4. Trello-Server bauen
+# 4. Trello-Server vorbereiten
 RUN mkdir -p /app/servers && \
     git clone https://github.com/lioarce01/trello-mcp-server.git /app/servers/trello && \
     cd /app/servers/trello && \
-    npm install && \
-    npm run build
+    npm install
 
 # 5. Code kopieren
 COPY . .

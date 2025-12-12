@@ -13,7 +13,7 @@ trello_response_parser = lambda card: {
 
 SYSTEM_DEFINITIONS = {
     "TRELLO": {
-        "command": ["node", "/app/servers/trello/dist/index.js"],
+        "command": ["tsx", "/app/servers/trello/src/index.ts"],
         "polling_tool": "get_cards_in_list",
         "polling_args": {
             "listId": "{trello_todo_list_id}"
