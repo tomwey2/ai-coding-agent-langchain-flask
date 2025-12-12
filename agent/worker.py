@@ -1,17 +1,15 @@
 import asyncio
+import json
 import logging
 import os
 import sys
 from contextlib import AsyncExitStack
 
-# LangGraph
 from langchain_core.messages import AIMessage, HumanMessage
 from langgraph.graph import END, StateGraph
 from langgraph.prebuilt import ToolNode
 
 from agent.llm_setup import get_llm_model
-
-# Tools
 from agent.local_tools import (
     create_github_pr,
     ensure_repository_exists,
@@ -28,271 +26,220 @@ from agent.nodes.analyst import create_analyst_node
 from agent.nodes.bugfixer import create_bugfixer_node
 from agent.nodes.coder import create_coder_node
 from agent.nodes.correction import create_correction_node
-
-# --- IMPORTS DER NODE FACTORIES ---
 from agent.nodes.router import create_router_node
-
-# State
 from agent.state import AgentState
-from agent.task_connector import TaskAppConnector
-
-# Constants
-from constants import TASK_STATE_IN_REVIEW, TASK_STATE_OPEN
+from agent.system_mappings import SYSTEM_DEFINITIONS
 from models import AgentConfig
 
 logger = logging.getLogger(__name__)
 
 
-async def process_task_with_langgraph(task, config):
+async def process_task_with_langgraph(task, config, git_tools, task_tools):
     repo_url = (
         config.github_repo_url or "https://github.com/tom-test-user/test-repo.git"
     )
     work_dir = "/app/work_dir"
-
     ensure_repository_exists(repo_url, work_dir)
 
-    # 1. Wir definieren unsere Server-Liste
-    # Hier könnten später JIRA, Slack, Postgres dazukommen!
-    servers_to_start = [
-        {
-            "name": "git",
-            "command": sys.executable,  # Wir nutzen das installierte Python-Modul
-            "args": ["-m", "mcp_server_git", "--repository", work_dir],
-            "env": os.environ.copy(),
-        },
-        # ZUKUNFTS-MUSIK (Beispiel):
-        # {
-        #    "name": "jira",
-        #    "command": "npx",
-        #    "args": ["-y", "@modelcontextprotocol/server-jira"],
-        #    "env": { ... "JIRA_API_TOKEN": ... }
-        #
-        # }
+    all_mcp_tools = git_tools + task_tools
+
+    # --- Tool Sets Definition ---
+    read_tools = [list_files, read_file]
+    write_tools = [
+        git_create_branch,
+        write_to_file,
+        git_push_origin,
+        create_github_pr,
     ]
+    base_tools = [log_thought, finish_task]
 
-    # 2. Wir starten ALLE Server gleichzeitig
-    async with AsyncExitStack() as stack:
-        mcp_tools = []
+    analyst_tools = all_mcp_tools + read_tools + base_tools
+    coder_tools = all_mcp_tools + read_tools + write_tools + base_tools
 
-        for server_conf in servers_to_start:
-            logger.info(f"Connecting to MCP Server: {server_conf['name']}...")
+    llm = get_llm_model(config)
 
-            # Client erstellen
-            client = McpServerClient(
-                command=server_conf["command"],
-                args=server_conf["args"],
-                env=server_conf["env"],
+    # --- Node Creation ---
+    router_node = create_router_node(llm)
+    coder_node = create_coder_node(llm, coder_tools, repo_url)
+    bugfixer_node = create_bugfixer_node(llm, coder_tools, repo_url)
+    analyst_node = create_analyst_node(llm, analyst_tools, repo_url)
+    correction_node = create_correction_node()
+    tool_node = ToolNode(coder_tools)
+
+    # --- Graph Wiring ---
+    workflow = StateGraph(AgentState)
+    workflow.add_node("router", router_node)
+    workflow.add_node("coder", coder_node)
+    workflow.add_node("bugfixer", bugfixer_node)
+    workflow.add_node("analyst", analyst_node)
+    workflow.add_node("tools", tool_node)
+    workflow.add_node("correction", correction_node)
+    workflow.set_entry_point("router")
+
+    def route_after_router(state):
+        step = state.get("next_step", "coder").lower()
+        if step in ["coder", "bugfixer", "analyst"]:
+            return step
+        return "coder"
+
+    workflow.add_conditional_edges(
+        "router",
+        route_after_router,
+        {"coder": "coder", "bugfixer": "bugfixer", "analyst": "analyst"},
+    )
+
+    def check_exit(state):
+        last_msg = state["messages"][-1]
+        if not isinstance(last_msg, AIMessage) or not last_msg.tool_calls:
+            return "correction"
+        if any(call["name"] == "finish_task" for call in last_msg.tool_calls):
+            return END
+        return "tools"
+
+    workflow.add_conditional_edges(
+        "coder", check_exit, {"tools": "tools", "correction": "correction", END: END}
+    )
+    workflow.add_conditional_edges(
+        "bugfixer",
+        check_exit,
+        {"tools": "tools", "correction": "correction", END: END},
+    )
+    workflow.add_conditional_edges("analyst", check_exit, {"tools": "tools", END: END})
+
+    def route_back(state):
+        return state.get("next_step", "CODER").lower()
+
+    workflow.add_conditional_edges(
+        "correction",
+        route_back,
+        {"coder": "coder", "bugfixer": "bugfixer", "analyst": "analyst"},
+    )
+    workflow.add_conditional_edges(
+        "tools",
+        route_back,
+        {"coder": "coder", "bugfixer": "bugfixer", "analyst": "analyst"},
+    )
+
+    # --- Graph Execution ---
+    app_graph = workflow.compile()
+    logger.info(f"Executing graph for task: {task['id']}...")
+    final_state = await app_graph.ainvoke(
+        {
+            "messages": [
+                HumanMessage(
+                    content=f"Task: {task.get('title')}\nDescription: {task.get('description')}"
+                )
+            ],
+            "next_step": "",
+        },
+        {"recursion_limit": 50},
+    )
+
+    for msg in reversed(final_state["messages"]):
+        if isinstance(msg, AIMessage) and msg.tool_calls:
+            for call in msg.tool_calls:
+                if call["name"] == "finish_task":
+                    return call["args"].get("summary", "Task completed.")
+    return "Agent finished without a summary."
+
+
+async def run_agent_cycle_async(app):
+    with app.app_context():
+        config = AgentConfig.query.first()
+        if not config or not config.is_active:
+            logger.info("Agent is not active or not configured. Skipping cycle.")
+            return
+
+        logger.info(f"Starting agent cycle for system: {config.task_system_type}")
+        system_def = SYSTEM_DEFINITIONS.get(config.task_system_type)
+        if not system_def:
+            logger.error(f"Task system '{config.task_system_type}' not defined.")
+            return
+
+        try:
+            sys_config = json.loads(config.system_config_json or "{}")
+        except json.JSONDecodeError:
+            logger.error("Invalid system_config_json.")
+            return
+
+        task_env = os.environ.copy()
+        task_env.update(sys_config.get("env", {}))
+
+        work_dir = "/app/work_dir"
+        ensure_repository_exists(config.github_repo_url, work_dir)
+
+        async with AsyncExitStack() as stack:
+            # --- Start ALL MCP Servers ---
+            git_mcp = McpServerClient(
+                command=sys.executable,
+                args=["-m", "mcp_server_git", "--repository", work_dir],
+                env=os.environ.copy(),
+            )
+            task_mcp = McpServerClient(
+                system_def["command"][0], system_def["command"][1:], env=task_env
             )
 
-            # Starten (enter_async_context hält die Verbindung offen bis zum Ende des 'with' Blocks)
-            await stack.enter_async_context(client)
+            await stack.enter_async_context(git_mcp)
+            await stack.enter_async_context(task_mcp)
 
-            # Tools laden und zur großen Liste hinzufügen
-            tools = await client.get_langchain_tools()
-            mcp_tools.extend(tools)
-            logger.info(f"Loaded {len(tools)} tools from {server_conf['name']}.")
+            git_tools = await git_mcp.get_langchain_tools()
+            task_tools = await task_mcp.get_langchain_tools()
+            logger.info(
+                f"Loaded {len(git_tools)} Git tools and {len(task_tools)} Task tools."
+            )
 
-        # 1. Tool-Sets definieren
-        read_tools = [list_files, read_file]
-        write_tools = [
-            git_create_branch,
-            write_to_file,
-            git_push_origin,
-            create_github_pr,
-        ]
-        base_tools = [log_thought, finish_task]
+            # --- Poll for Tasks ---
+            polling_tool_name = system_def["polling_tool"]
+            polling_args = {
+                k: v.format(**sys_config) for k, v in system_def["polling_args"].items()
+            }
+            task = None
+            try:
+                raw_tasks = await task_mcp.call_tool(polling_tool_name, **polling_args)
+                if not raw_tasks:
+                    logger.info("No open tasks found.")
+                    return
 
-        analyst_tools = mcp_tools + read_tools + base_tools
-        coder_tools = mcp_tools + read_tools + write_tools + base_tools
+                task = system_def["response_parser"](raw_tasks[0])
+                logger.info(f"Processing Task ID: {task['id']}")
 
-        llm = get_llm_model(config)
+                await task_mcp.call_tool(
+                    "add_comment_to_card",
+                    cardId=task["id"],
+                    text="🤖 Agent processing started...",
+                )
 
-        # 2. Nodes erstellen (Factories aufrufen)
-        # Hier übergeben wir LLM, Tools und Repo-URL an die externen Dateien
-        router_node = create_router_node(llm)
-        coder_node = create_coder_node(llm, coder_tools, repo_url)
-        bugfixer_node = create_bugfixer_node(llm, coder_tools, repo_url)
-        analyst_node = create_analyst_node(llm, analyst_tools, repo_url)
-        correction_node = create_correction_node()
+                output = await process_task_with_langgraph(
+                    task, config, git_tools, task_tools
+                )
+                final_comment = f"🤖 Job Done.\n\nSummary:\n{output}"
 
-        # Tool Node ist generisch und braucht keine Factory
-        tool_node = ToolNode(coder_tools)
-
-        # 3. Graph Wiring
-        workflow = StateGraph(AgentState)
-        workflow.add_node("router", router_node)
-        workflow.add_node("coder", coder_node)
-        workflow.add_node("bugfixer", bugfixer_node)
-        workflow.add_node("analyst", analyst_node)
-        workflow.add_node("tools", tool_node)
-        workflow.add_node("correction", correction_node)
-
-        workflow.set_entry_point("router")
-
-        # 4. Edges & Routing
-
-        # Nach dem Router
-        def route_after_router(state):
-            step = state["next_step"]
-            if step == "BUGFIXER":
-                return "bugfixer"
-            elif step == "ANALYST":
-                return "analyst"
-            return "coder"
-
-        workflow.add_conditional_edges(
-            "router",
-            route_after_router,
-            {"coder": "coder", "bugfixer": "bugfixer", "analyst": "analyst"},
-        )
-
-        # Exit-Logik für Coder/Bugfixer (Tools oder Correction)
-        def check_exit(state):
-            last_msg = state["messages"][-1]
-            if not isinstance(last_msg, AIMessage):
-                return "correction"
-
-            if hasattr(last_msg, "tool_calls") and last_msg.tool_calls:
-                for tool_call in last_msg.tool_calls:
-                    if tool_call["name"] == "finish_task":
-                        return END
-                return "tools"
-            return "correction"
-
-        workflow.add_conditional_edges(
-            "coder",
-            check_exit,
-            {"tools": "tools", "correction": "correction", END: END},
-        )
-        workflow.add_conditional_edges(
-            "bugfixer",
-            check_exit,
-            {"tools": "tools", "correction": "correction", END: END},
-        )
-
-        # Exit-Logik für Analyst (Tools oder Ende)
-        def check_exit_analyst(state):
-            last_msg = state["messages"][-1]
-            if hasattr(last_msg, "tool_calls") and last_msg.tool_calls:
-                for tool_call in last_msg.tool_calls:
-                    if tool_call["name"] == "finish_task":
-                        return END
-                return "tools"
-            # Wenn Analyst Text schickt (ohne Tool), ist das OK, aber wir beenden hier sicherheitshalber,
-            # damit er nicht loopt. Besser wäre, er nutzt finish_task.
-            return END
-
-        workflow.add_conditional_edges(
-            "analyst", check_exit_analyst, {"tools": "tools", END: END}
-        )
-
-        # Routing zurück zum jeweiligen Agenten
-        def route_back(state):
-            step = state.get("next_step", "CODER")
-            if step == "BUGFIXER":
-                return "bugfixer"
-            elif step == "ANALYST":
-                return "analyst"
-            return "coder"
-
-        workflow.add_conditional_edges(
-            "correction",
-            route_back,
-            {"coder": "coder", "bugfixer": "bugfixer", "analyst": "analyst"},
-        )
-        workflow.add_conditional_edges(
-            "tools",
-            route_back,
-            {"coder": "coder", "bugfixer": "bugfixer", "analyst": "analyst"},
-        )
-
-        # 5. Compile & Run
-        app_graph = workflow.compile()
-        print(app_graph.get_graph().draw_ascii())
-        logger.info(f"Task starts (Multi-Agent Modular) for Task {task['id']}...")
-
-        final_state = await app_graph.ainvoke(
-            {
-                "messages": [
-                    HumanMessage(
-                        content=f"Task: {task.get('title')}\nDescription: {task.get('description')}"
+                review_list_id = sys_config.get("trello_review_list_id")
+                if review_list_id:
+                    await task_mcp.call_tool(
+                        "move_card_to_list", cardId=task["id"], listId=review_list_id
                     )
-                ],
-                "next_step": "",
-            },
-            {"recursion_limit": 50},
-        )
+            except Exception as e:
+                logger.error(
+                    f"Agent failed on task {task.get('id', 'N/A') if task else 'N/A'}: {e}",
+                    exc_info=True,
+                )
+                final_comment = f"💥 Agent crashed: {e}"
+                # Try to comment on failure
+                if task and task.get("id"):
+                    await task_mcp.call_tool(
+                        "add_comment_to_card", cardId=task["id"], text=final_comment
+                    )
 
-        # 6. Result Extraction (Die "Smart Extraction" Logik)
-        final_output = "Agent finished (No summary found)."
-
-        # Rückwärts suchen, um den letzten 'finish_task' Aufruf zu finden
-        for msg in reversed(final_state["messages"]):
-            if isinstance(msg, AIMessage):
-                # Fall A: Tool Call (finish_task)
-                if msg.tool_calls:
-                    found = False
-                    for tool_call in msg.tool_calls:
-                        if tool_call["name"] == "finish_task":
-                            final_output = tool_call["args"].get("summary", "Done.")
-                            found = True
-                            break
-                    if found:
-                        break
-
-                # Fall B: Reiner Text (Fallback für Analyst)
-                # Wir nehmen den Text nur, wenn wir noch kein finish_task gefunden haben
-                elif (
-                    msg.content and final_output == "Agent finished (No summary found)."
-                ):
-                    final_output = str(msg.content)
-                    # Wir brechen hier NICHT ab, sondern suchen weiter nach einem echten finish_task,
-                    # falls der Text nur ein "Thinking" war. Aber es ist ein guter Fallback.
-                    break
-
-        return final_output
+            else:
+                if task and task.get("id"):
+                    await task_mcp.call_tool(
+                        "add_comment_to_card", cardId=task["id"], text=final_comment
+                    )
 
 
 def run_agent_cycle(app):
-    with app.app_context():
-        try:
-            config = AgentConfig.query.first()
-            if not config or not config.is_active:
-                return
-
-            logger.info("Agent cycle starting...")
-            connector = TaskAppConnector(
-                config.task_app_base_url,
-                config.agent_username,
-                config.agent_password,
-                config.target_project_id,
-            )
-            tasks = connector.get_open_tasks()
-            if not tasks:
-                logger.info("No open tasks found.")
-                return
-
-            task = tasks[0]
-            logger.info(f"Processing Task ID: {task['id']}")
-            connector.post_comment(
-                task["id"], "🤖 Agent V16 (Modular & Smart) started..."
-            )
-
-            try:
-                output = asyncio.run(process_task_with_langgraph(task, config))
-                limit = 4000
-                short_output = output[:limit] + "..." if len(output) > limit else output
-                final_comment = f"🤖 Job Done.\n\nSummary:\n{short_output}"
-                new_status = TASK_STATE_IN_REVIEW
-            except Exception as e:
-                logger.error(f"Agent failed: {e}", exc_info=True)
-                final_comment = f"💥 Agent crashed: {str(e)}"
-                new_status = TASK_STATE_OPEN
-
-            connector.post_comment(task["id"], final_comment)
-            if new_status == TASK_STATE_IN_REVIEW:
-                connector.update_status(task["id"], new_status)
-            logger.info("Agent cycle finished.")
-
-        except Exception as e:
-            logger.error(f"Unexpected error: {e}", exc_info=True)
+    try:
+        asyncio.run(run_agent_cycle_async(app))
+    except Exception as e:
+        logger.error(f"Critical error in agent cycle: {e}", exc_info=True)

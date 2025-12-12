@@ -65,6 +65,37 @@ class McpServerClient:
 
         return langchain_tools
 
+    async def call_tool(self, tool_name: str, **kwargs):
+        """Ruft ein Tool direkt auf und gibt das rohe Ergebnis zurück."""
+        if not self.session:
+            raise RuntimeError("MCP Session not started.")
+        try:
+            # Führe den Tool-Aufruf über die MCP-Session aus
+            result = await self.session.call_tool(tool_name, arguments=kwargs)
+
+            # Überprüfe auf Fehler
+            if result.isError:
+                error_message = "Unknown error"
+                if result.content and result.content[0].type == "text":
+                    error_message = result.content[0].text
+                raise RuntimeError(f"Error calling tool '{tool_name}': {error_message}")
+
+            # Extrahiere und gib den Inhalt zurück
+            # Wir nehmen hier an, dass der für uns relevante Inhalt im ersten Content-Block ist
+            # und ein JSON-Objekt ist, das direkt zurückgegeben werden kann.
+            if result.content:
+                # Trello und andere Server senden oft JSON-Daten
+                if result.content[0].type == "application/json":
+                    return result.content[0].json
+                # Fallback für reinen Text
+                elif result.content[0].type == "text":
+                    return result.content[0].text
+
+            return None  # Kein Inhalt
+
+        except Exception as e:
+            raise RuntimeError(f"Failed to call tool '{tool_name}': {e}") from e
+
     def _convert_to_langchain_tool(self, tool_schema):
         """Wandelt MCP Schema in LangChain Tool."""
         tool_name = tool_schema.name

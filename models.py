@@ -5,12 +5,18 @@ class AgentConfig(db.Model):
     __tablename__ = "agent_config"
 
     id = db.Column(db.Integer, primary_key=True)
-    task_app_base_url = db.Column(db.String(255), nullable=False)
-    agent_username = db.Column(db.String(100), nullable=True)
-    agent_password = db.Column(
-        db.String(255), nullable=True
-    )  # Note: Storing passwords in plaintext is not secure!
-    target_project_id = db.Column(db.String(50), nullable=True)
+    # Generic Task System Fields
+    task_system_type = db.Column(
+        db.String(50), nullable=False, default="CUSTOM"
+    )  # e.g., "TRELLO", "JIRA", "CUSTOM"
+    system_config_json = db.Column(
+        db.Text, nullable=True
+    )  # JSON blob for credentials, IDs, etc.
+
+    # Existing Fields
+    repo_type = db.Column(
+        db.String(50), nullable=False, default="GITHUB"
+    )  # e.g., "GITHUB", "BITBUCKET"
     github_repo_url = db.Column(
         db.String(200),
         default="https://github.com/tomwey2/calculator-spring-docker-jenkins.git",
