@@ -1,5 +1,6 @@
 import json
 import logging
+import os
 import re
 from typing import Dict, Optional
 
@@ -9,6 +10,17 @@ from langchain_core.messages import AIMessage
 from models import AgentConfig
 
 logger = logging.getLogger(__name__)
+
+
+def get_cipher_suite() -> Optional[Fernet]:
+    """
+    Initializes the Fernet cipher suite from the ENCRYPTION_KEY environment variable.
+    """
+    key = os.environ.get("ENCRYPTION_KEY")
+    if not key:
+        logger.error("CRITICAL: ENCRYPTION_KEY not set. Cannot decrypt configuration.")
+        return None
+    return Fernet(key.encode())
 
 
 def sanitize_response(response: AIMessage) -> AIMessage:
@@ -37,10 +49,11 @@ def sanitize_response(response: AIMessage) -> AIMessage:
     return response
 
 
-def decrypt_config(config: AgentConfig, cipher_suite: Fernet) -> Optional[Dict]:
+def decrypt_config(config: AgentConfig) -> Optional[Dict]:
     """
     Decrypts the system_config_json from the agent configuration.
     """
+    cipher_suite = get_cipher_suite()
     decrypted_json = "{}"
     if config.system_config_json and cipher_suite:
         try:

@@ -3,9 +3,11 @@ import logging
 import os
 import sys
 from contextlib import AsyncExitStack
+from typing import Any, Dict, List
 
-from cryptography.fernet import Fernet
+from flask import Flask
 from langchain_core.messages import AIMessage, HumanMessage
+from langchain_core.tools import BaseTool
 from langgraph.graph import END, StateGraph
 from langgraph.prebuilt import ToolNode
 
@@ -34,22 +36,13 @@ from models import AgentConfig
 
 logger = logging.getLogger(__name__)
 
-# --- Encryption Setup ---
-# This MUST be the same key used in webapp.py
-# In a real distributed system, this key would be managed by a secrets manager
-key = os.environ.get("ENCRYPTION_KEY")
-if not key:
-    logger.error(
-        "CRITICAL: ENCRYPTION_KEY not set for worker. Cannot decrypt configuration."
-    )
-    # Exit or handle gracefully if no key is found
-    # For this example, we'll proceed, but decryption will fail if data is encrypted.
-    cipher_suite = None
-else:
-    cipher_suite = Fernet(key.encode())
 
-
-async def process_task_with_langgraph(task, config, git_tools, task_tools):
+async def process_task_with_langgraph(
+    task: Dict[str, Any],
+    config: AgentConfig,
+    git_tools: List[BaseTool],
+    task_tools: List[BaseTool],
+) -> str:
     repo_url = (
         config.github_repo_url or "https://github.com/tom-test-user/test-repo.git"
     )
@@ -91,7 +84,7 @@ async def process_task_with_langgraph(task, config, git_tools, task_tools):
     workflow.add_node("correction", correction_node)
     workflow.set_entry_point("router")
 
-    def route_after_router(state):
+    def route_after_router(state: AgentState) -> str:
         step = state.get("next_step", "coder").lower()
         if step in ["coder", "bugfixer", "analyst"]:
             return step
@@ -103,7 +96,7 @@ async def process_task_with_langgraph(task, config, git_tools, task_tools):
         {"coder": "coder", "bugfixer": "bugfixer", "analyst": "analyst"},
     )
 
-    def check_exit(state):
+    def check_exit(state: AgentState) -> str:
         last_msg = state["messages"][-1]
         if not isinstance(last_msg, AIMessage) or not last_msg.tool_calls:
             return "correction"
@@ -121,7 +114,7 @@ async def process_task_with_langgraph(task, config, git_tools, task_tools):
     )
     workflow.add_conditional_edges("analyst", check_exit, {"tools": "tools", END: END})
 
-    def route_back(state):
+    def route_back(state: AgentState) -> str:
         return state.get("next_step", "CODER").lower()
 
     workflow.add_conditional_edges(
@@ -158,7 +151,7 @@ async def process_task_with_langgraph(task, config, git_tools, task_tools):
     return "Agent finished without a summary."
 
 
-async def run_agent_cycle_async(app):
+async def run_agent_cycle_async(app: Flask) -> None:
     with app.app_context():
         config = AgentConfig.query.first()
         if not config or not config.is_active:
@@ -171,7 +164,7 @@ async def run_agent_cycle_async(app):
             logger.error(f"Task system '{config.task_system_type}' not defined.")
             return
 
-        sys_config = decrypt_config(config, cipher_suite)
+        sys_config = decrypt_config(config)
         if sys_config is None:
             return
 
@@ -256,7 +249,7 @@ async def run_agent_cycle_async(app):
                     )
 
 
-def run_agent_cycle(app):
+def run_agent_cycle(app: Flask) -> None:
     try:
         asyncio.run(run_agent_cycle_async(app))
     except Exception as e:
