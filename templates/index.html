@@ -85,7 +85,10 @@
                                     </select>
                                 </div>
                                 <div class="mb-3">
-                                    <label for="api_key" class="form-label"
+                                    <label
+                                        id="api_key_label"
+                                        for="api_key"
+                                        class="form-label"
                                         >API Key / Username</label
                                     >
                                     <input
@@ -97,7 +100,10 @@
                                     />
                                 </div>
                                 <div class="mb-3">
-                                    <label for="api_token" class="form-label"
+                                    <label
+                                        id="api_token_label"
+                                        for="api_token"
+                                        class="form-label"
                                         >API Token / Password</label
                                     >
                                     <input
@@ -109,7 +115,10 @@
                                     />
                                 </div>
                                 <div class="mb-3">
-                                    <label for="project_id" class="form-label"
+                                    <label
+                                        id="project_id_label"
+                                        for="project_id"
+                                        class="form-label"
                                         >List ID / Project ID / JQL</label
                                     >
                                     <input
@@ -123,14 +132,7 @@
                                 <div
                                     class="mb-3"
                                     id="trello_url_field"
-                                    {%
-                                    if
-                                    config.task_system_type
-                                    !="TRELLO"
-                                    %}style="display: none;"
-                                    {%
-                                    endif
-                                    %}
+                                    style="display: none"
                                 >
                                     <label
                                         for="trello_base_url"
@@ -148,13 +150,7 @@
                                 <div
                                     class="mb-3"
                                     id="trello_review_list_id_field"
-                                    {%
-                                    if
-                                    config.task_system_type!="TRELLO"
-                                    %}style="display: none;"
-                                    {%
-                                    endif
-                                    %}
+                                    style="display: none"
                                 >
                                     <label
                                         for="trello_review_list_id"
@@ -307,22 +303,62 @@
         </div>
 
         <script>
-            document
-                .getElementById("task_system_type")
-                .addEventListener("change", function () {
-                    var trelloUrlField =
-                        document.getElementById("trello_url_field");
-                    var trelloReviewListIdField = document.getElementById(
-                        "trello_review_list_id_field",
-                    );
-                    if (this.value === "TRELLO") {
+            function updateTaskSystemFields() {
+                const system =
+                    document.getElementById("task_system_type").value;
+                const apiKeyLabel = document.getElementById("api_key_label");
+                const apiTokenLabel =
+                    document.getElementById("api_token_label");
+                const projectIdLabel =
+                    document.getElementById("project_id_label");
+                const trelloUrlField =
+                    document.getElementById("trello_url_field");
+                const trelloReviewListIdField = document.getElementById(
+                    "trello_review_list_id_field",
+                );
+
+                // Reset all to default
+                apiKeyLabel.textContent = "API Key / Username";
+                apiTokenLabel.textContent = "API Token / Password";
+                projectIdLabel.textContent = "List ID / Project ID / JQL";
+                trelloUrlField.style.display = "none";
+                trelloReviewListIdField.style.display = "none";
+
+                switch (system) {
+                    case "TRELLO":
+                        apiKeyLabel.textContent = "Trello API Key";
+                        apiTokenLabel.textContent = "Trello API Token";
+                        projectIdLabel.textContent = "Trello Board ID";
                         trelloUrlField.style.display = "block";
                         trelloReviewListIdField.style.display = "block";
-                    } else {
-                        trelloUrlField.style.display = "none";
-                        trelloReviewListIdField.style.display = "none";
-                    }
-                });
+                        break;
+                    case "JIRA":
+                        apiKeyLabel.textContent = "Jira Username (Email)";
+                        apiTokenLabel.textContent = "Jira API Token";
+                        projectIdLabel.textContent = "Jira JQL Query";
+                        break;
+                    case "GITHUB_ISSUES":
+                        apiKeyLabel.textContent = "GitHub Username";
+                        apiTokenLabel.textContent = "GitHub Access Token";
+                        projectIdLabel.textContent =
+                            "Repository (e.g. owner/repo)";
+                        break;
+                    case "CUSTOM":
+                        apiKeyLabel.textContent = "Username";
+                        apiTokenLabel.textContent = "Password";
+                        projectIdLabel.textContent =
+                            "Custom Project Identifier";
+                        break;
+                }
+            }
+
+            document.addEventListener("DOMContentLoaded", function () {
+                updateTaskSystemFields();
+            });
+
+            document
+                .getElementById("task_system_type")
+                .addEventListener("change", updateTaskSystemFields);
         </script>
     </body>
 </html>
