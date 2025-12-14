@@ -56,7 +56,7 @@ SYSTEM_DEFINITIONS = {
     "TRELLO": {
         "command": ["tsx", "/app/servers/trello/src/index.ts"],
         "polling_tool": "read_board",
-        "polling_args": {"boardId": "{trello_readfrom_list_id}"},
+        "polling_args": {"boardId": "{trello_todo_list_id}"},
         "response_parser": trello_response_parser,
     },
     # Future systems like JIRA can be added here
