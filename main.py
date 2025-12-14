@@ -1,3 +1,7 @@
+import os
+
+from cryptography.fernet import Fernet
+
 from agent.worker import run_agent_cycle
 from extensions import db, scheduler
 from models import AgentConfig
@@ -5,7 +9,12 @@ from webapp import create_app
 
 # Main entry point
 if __name__ == "__main__":
-    app = create_app()
+    key = os.environ.get("ENCRYPTION_KEY")
+    if not key:
+        raise ValueError("ENCRYPTION_KEY is not set. Application cannot start.")
+    encryption_key = Fernet(key.encode())
+
+    app = create_app(encryption_key)
 
     with app.app_context():
         db.create_all()
@@ -22,7 +31,7 @@ if __name__ == "__main__":
                 trigger="interval",
                 seconds=interval_seconds,
                 replace_existing=True,
-                args=[app],
+                args=[app, encryption_key],
             )
 
         # Start the scheduler

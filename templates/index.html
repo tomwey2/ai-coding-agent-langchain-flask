@@ -3,118 +3,465 @@
     <head>
         <meta charset="utf-8" />
         <meta name="viewport" content="width=device-width, initial-scale=1" />
-        <title>Agent Configuration</title>
+        <title>Agent Dashboard</title>
         <link
             href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css"
             rel="stylesheet"
         />
+        <style>
+            body {
+                background-color: #f8f9fa;
+            }
+            .disabled-card {
+                opacity: 0.5;
+                pointer-events: none;
+            }
+            .card {
+                transition: opacity 0.3s ease-in-out;
+            }
+        </style>
     </head>
     <body>
-        <div class="container mt-4">
-            <h1>Agent Configuration</h1>
-            <hr />
+        <div class="container mt-5 mb-5">
+            <h1 class="mb-4">Agent Dashboard</h1>
+
             <form method="post">
-                <div class="mb-3">
-                    <label for="task_app_base_url" class="form-label"
-                        >TaskApp Base URL</label
-                    >
-                    <input
-                        type="url"
-                        class="form-control"
-                        id="task_app_base_url"
-                        name="task_app_base_url"
-                        value="{{ config.task_app_base_url or '' }}"
-                        required
-                    />
-                </div>
-                <div class="row">
-                    <div class="col-md-6">
-                        <div class="mb-3">
-                            <label for="agent_username" class="form-label"
-                                >Agent Username</label
-                            >
-                            <input
-                                type="text"
-                                class="form-control"
-                                id="agent_username"
-                                name="agent_username"
-                                value="{{ config.agent_username or '' }}"
-                            />
+                <div class="row g-4">
+                    <!-- Task Systems Column -->
+                    <div class="col-md-7">
+                        <div class="row g-4">
+                            <!-- Trello Card -->
+                            <div class="col-12">
+                                <div
+                                    class="card h-100 shadow-sm"
+                                    id="card-trello"
+                                >
+                                    <div class="card-header">
+                                        <h5>Trello Configuration</h5>
+                                    </div>
+                                    <div class="card-body">
+                                        <fieldset id="fieldset-trello">
+                                            <div class="mb-3">
+                                                <label
+                                                    for="trello_api_key"
+                                                    class="form-label"
+                                                    >API Key</label
+                                                >
+                                                <input
+                                                    type="text"
+                                                    class="form-control"
+                                                    id="trello_api_key"
+                                                    name="trello_api_key"
+                                                    value="{{ form_data.trello_api_key or '' }}"
+                                                />
+                                            </div>
+                                            <div class="mb-3">
+                                                <label
+                                                    for="trello_api_token"
+                                                    class="form-label"
+                                                    >API Token</label
+                                                >
+                                                <input
+                                                    type="password"
+                                                    class="form-control"
+                                                    id="trello_api_token"
+                                                    name="trello_api_token"
+                                                    value="{{ form_data.trello_api_token or '' }}"
+                                                />
+                                            </div>
+                                            <div class="mb-3">
+                                                <label
+                                                    for="trello_board_id"
+                                                    class="form-label"
+                                                    >Board ID</label
+                                                >
+                                                <input
+                                                    type="text"
+                                                    class="form-control"
+                                                    id="trello_board_id"
+                                                    name="trello_board_id"
+                                                    value="{{ form_data.trello_board_id or '' }}"
+                                                />
+                                            </div>
+                                            <div class="mb-3">
+                                                <label for="trello_readfrom_list_id" class="form-label">Read-From List ID</label>
+                                                <input type="text" class="form-control" id="trello_readfrom_list_id" name="trello_readfrom_list_id" value="{{ form_data.trello_readfrom_list_id or '' }}">
+                                            </div>
+                                            <div class="mb-3">
+                                                <label for="trello_moveto_list_id" class="form-label">Move-To List ID</label>
+                                                <input type="text" class="form-control" id="trello_moveto_list_id" name="trello_moveto_list_id" value="{{ form_data.trello_moveto_list_id or '' }}">
+                                            </div>
+                                            <div class="mb-3">
+                                                <label
+                                                    for="trello_base_url"
+                                                    class="form-label"
+                                                    >Trello Base URL</label
+                                                >
+                                                <input
+                                                    type="text"
+                                                    class="form-control"
+                                                    id="trello_base_url"
+                                                    name="trello_base_url"
+                                                    value="{{ form_data.trello_base_url or 'https://api.trello.com' }}"
+                                                />
+                                            </div>
+                                        </fieldset>
+                                    </div>
+                                </div>
+                            </div>
+                            <!-- Jira Card -->
+                            <div class="col-12">
+                                <div
+                                    class="card h-100 shadow-sm"
+                                    id="card-jira"
+                                >
+                                    <div class="card-header">
+                                        <h5>Jira Configuration</h5>
+                                    </div>
+                                    <div class="card-body">
+                                        <fieldset id="fieldset-jira">
+                                            <div class="mb-3">
+                                                <label
+                                                    for="jira_username"
+                                                    class="form-label"
+                                                    >Username (Email)</label
+                                                >
+                                                <input
+                                                    type="text"
+                                                    class="form-control"
+                                                    id="jira_username"
+                                                    name="jira_username"
+                                                    value="{{ form_data.jira_username or '' }}"
+                                                />
+                                            </div>
+                                            <div class="mb-3">
+                                                <label
+                                                    for="jira_api_token"
+                                                    class="form-label"
+                                                    >API Token</label
+                                                >
+                                                <input
+                                                    type="password"
+                                                    class="form-control"
+                                                    id="jira_api_token"
+                                                    name="jira_api_token"
+                                                    value="{{ form_data.jira_api_token or '' }}"
+                                                />
+                                            </div>
+                                            <div class="mb-3">
+                                                <label
+                                                    for="jira_jql_query"
+                                                    class="form-label"
+                                                    >JQL Query</label
+                                                >
+                                                <input
+                                                    type="text"
+                                                    class="form-control"
+                                                    id="jira_jql_query"
+                                                    name="jira_jql_query"
+                                                    value="{{ form_data.jira_jql_query or '' }}"
+                                                />
+                                            </div>
+                                        </fieldset>
+                                    </div>
+                                </div>
+                            </div>
+                            <!-- Custom Card -->
+                            <div class="col-12">
+                                <div
+                                    class="card h-100 shadow-sm"
+                                    id="card-custom"
+                                >
+                                    <div class="card-header">
+                                        <h5>Custom Configuration</h5>
+                                    </div>
+                                    <div class="card-body">
+                                        <fieldset id="fieldset-custom">
+                                            <div class="mb-3">
+                                                <label
+                                                    for="custom_username"
+                                                    class="form-label"
+                                                    >Username</label
+                                                >
+                                                <input
+                                                    type="text"
+                                                    class="form-control"
+                                                    id="custom_username"
+                                                    name="custom_username"
+                                                    value="{{ form_data.custom_username or '' }}"
+                                                />
+                                            </div>
+                                            <div class="mb-3">
+                                                <label
+                                                    for="custom_password"
+                                                    class="form-label"
+                                                    >Password</label
+                                                >
+                                                <input
+                                                    type="password"
+                                                    class="form-control"
+                                                    id="custom_password"
+                                                    name="custom_password"
+                                                    value="{{ form_data.custom_password or '' }}"
+                                                />
+                                            </div>
+                                            <div class="mb-3">
+                                                <label
+                                                    for="custom_project_id"
+                                                    class="form-label"
+                                                    >Project Identifier</label
+                                                >
+                                                <input
+                                                    type="text"
+                                                    class="form-control"
+                                                    id="custom_project_id"
+                                                    name="custom_project_id"
+                                                    value="{{ form_data.custom_project_id or '' }}"
+                                                />
+                                            </div>
+                                        </fieldset>
+                                    </div>
+                                </div>
+                            </div>
                         </div>
                     </div>
-                    <div class="col-md-6">
-                        <div class="mb-3">
-                            <label for="agent_password" class="form-label"
-                                >Agent Password</label
-                            >
-                            <input
-                                type="password"
-                                class="form-control"
-                                id="agent_password"
-                                name="agent_password"
-                                value="{{ config.agent_password or '' }}"
-                            />
+
+                    <!-- Settings Column -->
+                    <div class="col-md-5">
+                        <div class="row g-4">
+                            <!-- Agent Settings Card -->
+                            <div class="col-12">
+                                <div class="card h-100 shadow-sm">
+                                    <div class="card-header">
+                                        <h5>⚙️ Agent Configuration</h5>
+                                    </div>
+                                    <div class="card-body">
+                                        <div class="mb-3">
+                                            <label class="form-label"
+                                                >Active Task System</label
+                                            >
+                                            <div class="form-check">
+                                                <input
+                                                    class="form-check-input"
+                                                    type="radio"
+                                                    name="task_system_type"
+                                                    id="radio-trello"
+                                                    value="TRELLO"
+                                                    {%
+                                                    if
+                                                    config.task_system_type=="TRELLO"
+                                                    %}checked{%
+                                                    endif
+                                                    %}
+                                                />
+                                                <label
+                                                    class="form-check-label"
+                                                    for="radio-trello"
+                                                    >Trello</label
+                                                >
+                                            </div>
+                                            <div class="form-check">
+                                                <input
+                                                    class="form-check-input"
+                                                    type="radio"
+                                                    name="task_system_type"
+                                                    id="radio-jira"
+                                                    value="JIRA"
+                                                    {%
+                                                    if
+                                                    config.task_system_type=="JIRA"
+                                                    %}checked{%
+                                                    endif
+                                                    %}
+                                                />
+                                                <label
+                                                    class="form-check-label"
+                                                    for="radio-jira"
+                                                    >Jira</label
+                                                >
+                                            </div>
+                                            <div class="form-check">
+                                                <input
+                                                    class="form-check-input"
+                                                    type="radio"
+                                                    name="task_system_type"
+                                                    id="radio-custom"
+                                                    value="CUSTOM"
+                                                    {%
+                                                    if
+                                                    config.task_system_type=="CUSTOM"
+                                                    %}checked{%
+                                                    endif
+                                                    %}
+                                                />
+                                                <label
+                                                    class="form-check-label"
+                                                    for="radio-custom"
+                                                    >Custom</label
+                                                >
+                                            </div>
+                                        </div>
+                                        <div class="mb-3">
+                                            <label
+                                                for="polling_interval_seconds"
+                                                class="form-label"
+                                                >Polling Interval
+                                                (seconds)</label
+                                            >
+                                            <input
+                                                type="number"
+                                                class="form-control"
+                                                id="polling_interval_seconds"
+                                                name="polling_interval_seconds"
+                                                value="{{ config.polling_interval_seconds or 60 }}"
+                                                required
+                                            />
+                                        </div>
+                                        <div
+                                            class="form-check form-switch mb-3"
+                                        >
+                                            <input
+                                                class="form-check-input"
+                                                type="checkbox"
+                                                id="is_active"
+                                                name="is_active"
+                                                {%
+                                                if
+                                                config.is_active
+                                                %}checked{%
+                                                endif
+                                                %}
+                                            />
+                                            <label
+                                                class="form-check-label"
+                                                for="is_active"
+                                                >Activate Agent Polling</label
+                                            >
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                            <!-- Repository Card -->
+                            <div class="col-12">
+                                <div class="card h-100 shadow-sm">
+                                    <div class="card-header">
+                                        <h5>📦 Source Code</h5>
+                                    </div>
+                                    <div class="card-body">
+                                        <div class="mb-3">
+                                            <label
+                                                for="repo_type"
+                                                class="form-label"
+                                                >Repository Type</label
+                                            >
+                                            <select
+                                                class="form-select"
+                                                id="repo_type"
+                                                name="repo_type"
+                                            >
+                                                <option
+                                                    value="GITHUB"
+                                                    {%
+                                                    if
+                                                    config.repo_type=="GITHUB"
+                                                    %}selected{%
+                                                    endif
+                                                    %}
+                                                >
+                                                    GitHub
+                                                </option>
+                                                <option
+                                                    value="BITBUCKET"
+                                                    {%
+                                                    if
+                                                    config.repo_type=="BITBUCKET"
+                                                    %}selected{%
+                                                    endif
+                                                    %}
+                                                >
+                                                    Bitbucket
+                                                </option>
+                                                <option
+                                                    value="GITLAB"
+                                                    {%
+                                                    if
+                                                    config.repo_type=="GITLAB"
+                                                    %}selected{%
+                                                    endif
+                                                    %}
+                                                >
+                                                    GitLab
+                                                </option>
+                                            </select>
+                                        </div>
+                                        <div class="mb-3">
+                                            <label
+                                                for="github_repo_url"
+                                                class="form-label"
+                                                >Repository URL</label
+                                            >
+                                            <input
+                                                type="text"
+                                                class="form-control"
+                                                id="github_repo_url"
+                                                name="github_repo_url"
+                                                value="{{ config.github_repo_url }}"
+                                            />
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
                         </div>
                     </div>
+
+                    <!-- Save Button -->
+                    <div class="col-12 mt-4">
+                        <button
+                            type="submit"
+                            class="btn btn-primary w-100 py-3"
+                        >
+                            Save Configuration
+                        </button>
+                    </div>
                 </div>
-                <div class="mb-3">
-                    <label for="target_project_id" class="form-label"
-                        >Target Project ID</label
-                    >
-                    <input
-                        type="text"
-                        class="form-control"
-                        id="target_project_id"
-                        name="target_project_id"
-                        value="{{ config.target_project_id or '' }}"
-                    />
-                </div>
-                <div class="mb-3">
-                    <label for="github_repo_url" class="form-label"
-                        >GitHub Repository URL</label
-                    >
-                    <input
-                        type="text"
-                        class="form-control"
-                        id="github_repo_url"
-                        name="github_repo_url"
-                        value="{{ config.github_repo_url }}"
-                    />
-                </div>
-                <div class="mb-3">
-                    <label for="polling_interval_seconds" class="form-label"
-                        >Polling Interval (seconds)</label
-                    >
-                    <input
-                        type="number"
-                        class="form-control"
-                        id="polling_interval_seconds"
-                        name="polling_interval_seconds"
-                        value="{{ config.polling_interval_seconds or 60 }}"
-                        required
-                    />
-                </div>
-                <div class="form-check mb-3">
-                    <input
-                        class="form-check-input"
-                        type="checkbox"
-                        id="is_active"
-                        name="is_active"
-                        {%
-                        if
-                        config.is_active
-                        %}checked{%
-                        endif
-                        %}
-                    />
-                    <label class="form-check-label" for="is_active">
-                        Activate Agent Polling
-                    </label>
-                </div>
-                <button type="submit" class="btn btn-primary">
-                    Save Configuration
-                </button>
             </form>
         </div>
+
+        <script>
+            function updateActiveTaskSystem() {
+                const selectedSystem = document
+                    .querySelector('input[name="task_system_type"]:checked')
+                    .value.toLowerCase();
+
+                const systems = ["trello", "jira", "custom"];
+
+                systems.forEach((system) => {
+                    const card = document.getElementById(`card-${system}`);
+                    const fieldset = document.getElementById(
+                        `fieldset-${system}`,
+                    );
+
+                    if (system === selectedSystem) {
+                        card.classList.remove("disabled-card");
+                        fieldset.disabled = false;
+                    } else {
+                        card.classList.add("disabled-card");
+                        fieldset.disabled = true;
+                    }
+                });
+            }
+
+            document.addEventListener(
+                "DOMContentLoaded",
+                updateActiveTaskSystem,
+            );
+
+            const radioButtons = document.querySelectorAll(
+                'input[name="task_system_type"]',
+            );
+            radioButtons.forEach((radio) => {
+                radio.addEventListener("change", updateActiveTaskSystem);
+            });
+        </script>
     </body>
 </html>

@@ -86,19 +86,26 @@ The system is built upon a stateful, multi-agent architecture powered by LangGra
 * A **GitHub Personal Access Token** (Classic) with `repo` scope.
 * A running Task Management API (or a mock server).
 
-### 1. Build the Image
+### 1. Generate Encryption Key
+
+```bash
+python3 -c "from cryptography.fernet import Fernet; print(Fernet.generate_key().decode())"
+```
+
+### 2. Build the Image
 
 ```bash
 docker build -t ai-coding-agent .
 ```
 
-### 2. Run the Container
+### 3. Run the Container
 You must pass your API keys as environment variables.
 
 ```bash
 docker run \
   -e MISTRAL_API_KEY="your_mistral_api_key" \
   -e GITHUB_TOKEN="your_github_pat" \
+  -e ENCRYPTION_KEY="your_generated_encryption_key" \
   -p 5000:5000 \
   -v $(pwd)/instance:/app/instance \
   --name ai-coding-agent \
