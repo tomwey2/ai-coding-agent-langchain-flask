@@ -113,7 +113,7 @@ async def run_agent_cycle_async(app: Flask, encryption_key: Fernet) -> None:
             analyst_node = create_analyst_node(llm, analyst_tools, repo_url)
             correction_node = create_correction_node()
             tool_node = ToolNode(coder_tools)
-            trello_fetch_node = create_trello_fetch_node(task_mcp)
+            trello_fetch_node = create_trello_fetch_node(sys_config)
             trello_update_node = create_trello_update_node(task_mcp)
 
             # --- Graph Wiring ---
