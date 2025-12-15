@@ -112,7 +112,8 @@ async def run_agent_cycle_async(app: Flask, encryption_key: Fernet) -> None:
             bugfixer_node = create_bugfixer_node(llm, coder_tools, repo_url)
             analyst_node = create_analyst_node(llm, analyst_tools, repo_url)
             correction_node = create_correction_node()
-            tool_node = ToolNode(coder_tools)
+            tools_coder_node = ToolNode(coder_tools)
+            tools_analyst_node = ToolNode(analyst_tools)
             trello_fetch_node = create_trello_fetch_node(sys_config)
             trello_update_node = create_trello_update_node(sys_config)
 
@@ -123,7 +124,8 @@ async def run_agent_cycle_async(app: Flask, encryption_key: Fernet) -> None:
             workflow.add_node("coder", coder_node)
             workflow.add_node("bugfixer", bugfixer_node)
             workflow.add_node("analyst", analyst_node)
-            workflow.add_node("tools", tool_node)
+            workflow.add_node("tools_coder", tools_coder_node)
+            workflow.add_node("tools_analyst", tools_analyst_node)
             workflow.add_node("correction", correction_node)
             workflow.add_node("trello_update", trello_update_node)
 
@@ -150,37 +152,45 @@ async def run_agent_cycle_async(app: Flask, encryption_key: Fernet) -> None:
                 {"coder": "coder", "bugfixer": "bugfixer", "analyst": "analyst"},
             )
 
-            def check_exit(state: AgentState) -> str:
+            def route_coder_exit(state: AgentState) -> str:
                 last_msg = state["messages"][-1]
                 if not isinstance(last_msg, AIMessage) or not last_msg.tool_calls:
                     return "correction"
                 if any(call["name"] == "finish_task" for call in last_msg.tool_calls):
                     return "trello_update"
-                return "tools"
+                return "tools_coder"
+
+            def route_analyst_exit(state: AgentState) -> str:
+                last_msg = state["messages"][-1]
+                if not isinstance(last_msg, AIMessage) or not last_msg.tool_calls:
+                    return "correction"
+                if any(call["name"] == "finish_task" for call in last_msg.tool_calls):
+                    return "trello_update"
+                return "tools_analyst"
 
             workflow.add_conditional_edges(
                 "coder",
-                check_exit,
+                route_coder_exit,
                 {
-                    "tools": "tools",
+                    "tools_coder": "tools_coder",
                     "correction": "correction",
                     "trello_update": "trello_update",
                 },
             )
             workflow.add_conditional_edges(
                 "bugfixer",
-                check_exit,
+                route_coder_exit,
                 {
-                    "tools": "tools",
+                    "tools_coder": "tools_coder",
                     "correction": "correction",
                     "trello_update": "trello_update",
                 },
             )
             workflow.add_conditional_edges(
                 "analyst",
-                check_exit,
+                route_analyst_exit,
                 {
-                    "tools": "tools",
+                    "tools_analyst": "tools_analyst",
                     "correction": "correction",
                     "trello_update": "trello_update",
                 },

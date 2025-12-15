@@ -50,7 +50,61 @@ Key milestones for professionalization include:
 
 The system is built upon a stateful, multi-agent architecture powered by LangGraph. Instead of a monolithic process, the execution flow is intelligently orchestrated across specialized nodes.
 
-<img src="./langgraph.png" title="LangGraph Architecture" alt="LangGraph Architecture">
+```mermaid
+stateDiagram-v2
+    state "Trello Fetch" as fetch
+    state "Router" as router
+    state "Trello Update" as update
+    
+    state "Coder" as coder
+    state "Bugfixer" as bugfixer
+    state "Analyst" as analyst
+    
+    state "Coding Tools Execution" as coder_tools
+    state "Analyst Tools Execution" as analyst_tools
+    state "Correction (No Tool used)" as correction
+
+    [*] --> fetch
+    
+    %% Start Logic
+    fetch --> router : Card Found
+    fetch --> [*] : No Cards
+
+    %% Router Logic
+    router --> coder : type='feature'
+    router --> bugfixer : type='bug'
+    router --> analyst : type='analysis'
+
+    %% Agent Logic (check_exit) - 3 Wege!
+    
+    %% 1. Weg: Tool Nutzung
+    coder --> coder_tools : calls tool
+    bugfixer --> coder_tools : calls tool
+    analyst --> analyst_tools : calls tool
+
+    %% 2. Weg: Finish Task
+    coder --> update : calls finish_task
+    bugfixer --> update : calls finish_task
+    analyst --> update : calls finish_task
+
+    %% 3. Weg: Kein Tool (Labert nur) -> Correction
+    coder --> correction : no tool calls
+    bugfixer --> correction : no tool calls
+    analyst --> correction : no tool calls
+
+    %% Rückwege (route_back)
+    coder_tools --> coder : back to agent
+    coder_tools --> bugfixer : back to agent
+    analyst_tools --> analyst : back to agent
+
+    correction --> coder : back to agent
+    correction --> bugfixer : back to agent
+    correction --> analyst : back to agent
+
+    %% Ende
+    update --> [*]
+```
+
 
 * **Router Node:** The Routing workflows process inputs and then directs them to context-specific agents. It acts as the entry point. It analyzes the incoming ticket context and determines the optimal execution strategy by selecting the appropriate specialist. 
 
