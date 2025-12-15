@@ -6,9 +6,7 @@ async def get_all_trello_lists(sys_config: dict) -> list[dict]:
     if not env:
         raise ValueError("Environment not found in sys_config")
 
-    url = (
-        f"https://api.trello.com/1/boards/{sys_config.get('trello_todo_list_id')}/lists"
-    )
+    url = f"https://api.trello.com/1/boards/{sys_config.get('trello_board_id')}/lists"
     headers = {"Accept": "application/json"}
     query = {"key": env.get("TRELLO_API_KEY"), "token": env.get("TRELLO_TOKEN")}
 

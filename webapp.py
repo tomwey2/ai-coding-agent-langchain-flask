@@ -53,11 +53,9 @@ def create_app(encryption_key: Fernet) -> Flask:
                             "trello_base_url", "https://api.trello.com"
                         ),
                     },
-                    "trello_todo_list_id": request.form.get("trello_board_id"),
-                    "trello_readfrom_list_id": request.form.get(
-                        "trello_readfrom_list_id"
-                    ),
-                    "trello_review_list_id": request.form.get("trello_moveto_list_id"),
+                    "trello_board_id": request.form.get("trello_board_id"),
+                    "trello_readfrom_list": request.form.get("trello_readfrom_list"),
+                    "trello_moveto_list": request.form.get("trello_moveto_list"),
                 }
             elif system_type == "JIRA":
                 new_config_data = {
@@ -112,15 +110,13 @@ def create_app(encryption_key: Fernet) -> Flask:
                 form_data["trello_api_token"] = saved_data.get("env", {}).get(
                     "TRELLO_TOKEN"
                 )
-                form_data["trello_board_id"] = saved_data.get("trello_todo_list_id")
-                form_data["trello_readfrom_list_id"] = saved_data.get(
-                    "trello_readfrom_list_id"
+                form_data["trello_board_id"] = saved_data.get("trello_board_id")
+                form_data["trello_readfrom_list"] = saved_data.get(
+                    "trello_readfrom_list"
                 )
-                form_data["trello_moveto_list_id"] = saved_data.get(
-                    "trello_review_list_id"
-                )
+                form_data["trello_moveto_list"] = saved_data.get("trello_moveto_list")
                 form_data["trello_base_url"] = saved_data.get("env", {}).get(
-                    "TRELLO_BASE_URL", "https://api.trello.com"
+                    "TRELLO_BASE_URL", "https://api.trello.com/1"
                 )
 
                 # Jira data
