@@ -1,4 +1,28 @@
+import logging
+
 import httpx
+
+logger = logging.getLogger(__name__)
+
+
+def get_safe_url(url: str, params: dict) -> str:
+    """
+    Erstellt eine URL für das Logging, bei der sensitive Parameter maskiert sind.
+    """
+    # Wir bauen die volle URL inkl. Params nach, um sie zu parsen
+    req = httpx.Request("GET", url, params=params)
+    parsed_url = req.url
+
+    # Wir kopieren die Query-Parameter, aber überschreiben die Secrets
+    new_query_params = []
+    for key, value in parsed_url.params.items():
+        if key in ["key", "token"]:
+            new_query_params.append((key, "SECRET"))
+        else:
+            new_query_params.append((key, value))
+
+    # URL mit sicherem Query-String zurückgeben
+    return str(parsed_url.copy_with(params=new_query_params))
 
 
 async def get_all_trello_lists(sys_config: dict) -> list[dict]:
@@ -10,6 +34,7 @@ async def get_all_trello_lists(sys_config: dict) -> list[dict]:
     headers = {"Accept": "application/json"}
     query = {"key": env.get("TRELLO_API_KEY"), "token": env.get("TRELLO_TOKEN")}
 
+    logger.info(f"Trello GET: {get_safe_url(url, query)}")
     async with httpx.AsyncClient() as client:
         response = await client.get(url, headers=headers, params=query)
 
@@ -29,6 +54,7 @@ async def get_all_trello_cards(list_id: str, sys_config: dict) -> list[dict]:
     headers = {"Accept": "application/json"}
     query = {"key": env.get("TRELLO_API_KEY"), "token": env.get("TRELLO_TOKEN")}
 
+    logger.info(f"Trello GET: {get_safe_url(url, query)}")
     async with httpx.AsyncClient() as client:
         response = await client.get(url, headers=headers, params=query)
 
@@ -54,6 +80,7 @@ async def move_trello_card_to_list(card_id: str, list_id: str, sys_config: dict)
         "token": env.get("TRELLO_TOKEN"),
     }
 
+    logger.info(f"Trello PUT: {get_safe_url(url, query)}")
     async with httpx.AsyncClient() as client:
         response = await client.put(url, headers=headers, params=query)
 
@@ -76,6 +103,7 @@ async def add_comment_to_trello_card(card_id: str, comment: str, sys_config: dic
         "token": env.get("TRELLO_TOKEN"),
     }
 
+    logger.info(f"Trello POST: {get_safe_url(url, query)}")
     async with httpx.AsyncClient() as client:
         response = await client.post(url, headers=headers, params=query)
 
