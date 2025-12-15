@@ -87,7 +87,7 @@
                                                 <label
                                                     for="trello_readfrom_list"
                                                     class="form-label"
-                                                    >Read from list</label
+                                                    >Read first card from list</label
                                                 >
                                                 <input
                                                     type="text"
@@ -101,7 +101,7 @@
                                                 <label
                                                     for="trello_moveto_list"
                                                     class="form-label"
-                                                    >Move to list</label
+                                                    >Move updated card to list</label
                                                 >
                                                 <input
                                                     type="text"
@@ -123,120 +123,6 @@
                                                     id="trello_base_url"
                                                     name="trello_base_url"
                                                     value="{{ form_data.trello_base_url or 'https://api.trello.com' }}"
-                                                />
-                                            </div>
-                                        </fieldset>
-                                    </div>
-                                </div>
-                            </div>
-                            <!-- Jira Card -->
-                            <div class="col-12">
-                                <div
-                                    class="card h-100 shadow-sm"
-                                    id="card-jira"
-                                >
-                                    <div class="card-header">
-                                        <h5>Jira Configuration</h5>
-                                    </div>
-                                    <div class="card-body">
-                                        <fieldset id="fieldset-jira">
-                                            <div class="mb-3">
-                                                <label
-                                                    for="jira_username"
-                                                    class="form-label"
-                                                    >Username (Email)</label
-                                                >
-                                                <input
-                                                    type="text"
-                                                    class="form-control"
-                                                    id="jira_username"
-                                                    name="jira_username"
-                                                    value="{{ form_data.jira_username or '' }}"
-                                                />
-                                            </div>
-                                            <div class="mb-3">
-                                                <label
-                                                    for="jira_api_token"
-                                                    class="form-label"
-                                                    >API Token</label
-                                                >
-                                                <input
-                                                    type="password"
-                                                    class="form-control"
-                                                    id="jira_api_token"
-                                                    name="jira_api_token"
-                                                    value="{{ form_data.jira_api_token or '' }}"
-                                                />
-                                            </div>
-                                            <div class="mb-3">
-                                                <label
-                                                    for="jira_jql_query"
-                                                    class="form-label"
-                                                    >JQL Query</label
-                                                >
-                                                <input
-                                                    type="text"
-                                                    class="form-control"
-                                                    id="jira_jql_query"
-                                                    name="jira_jql_query"
-                                                    value="{{ form_data.jira_jql_query or '' }}"
-                                                />
-                                            </div>
-                                        </fieldset>
-                                    </div>
-                                </div>
-                            </div>
-                            <!-- Custom Card -->
-                            <div class="col-12">
-                                <div
-                                    class="card h-100 shadow-sm"
-                                    id="card-custom"
-                                >
-                                    <div class="card-header">
-                                        <h5>Custom Configuration</h5>
-                                    </div>
-                                    <div class="card-body">
-                                        <fieldset id="fieldset-custom">
-                                            <div class="mb-3">
-                                                <label
-                                                    for="custom_username"
-                                                    class="form-label"
-                                                    >Username</label
-                                                >
-                                                <input
-                                                    type="text"
-                                                    class="form-control"
-                                                    id="custom_username"
-                                                    name="custom_username"
-                                                    value="{{ form_data.custom_username or '' }}"
-                                                />
-                                            </div>
-                                            <div class="mb-3">
-                                                <label
-                                                    for="custom_password"
-                                                    class="form-label"
-                                                    >Password</label
-                                                >
-                                                <input
-                                                    type="password"
-                                                    class="form-control"
-                                                    id="custom_password"
-                                                    name="custom_password"
-                                                    value="{{ form_data.custom_password or '' }}"
-                                                />
-                                            </div>
-                                            <div class="mb-3">
-                                                <label
-                                                    for="custom_project_id"
-                                                    class="form-label"
-                                                    >Project Identifier</label
-                                                >
-                                                <input
-                                                    type="text"
-                                                    class="form-control"
-                                                    id="custom_project_id"
-                                                    name="custom_project_id"
-                                                    value="{{ form_data.custom_project_id or '' }}"
                                                 />
                                             </div>
                                         </fieldset>
@@ -278,46 +164,6 @@
                                                     class="form-check-label"
                                                     for="radio-trello"
                                                     >Trello</label
-                                                >
-                                            </div>
-                                            <div class="form-check">
-                                                <input
-                                                    class="form-check-input"
-                                                    type="radio"
-                                                    name="task_system_type"
-                                                    id="radio-jira"
-                                                    value="JIRA"
-                                                    {%
-                                                    if
-                                                    config.task_system_type=="JIRA"
-                                                    %}checked{%
-                                                    endif
-                                                    %}
-                                                />
-                                                <label
-                                                    class="form-check-label"
-                                                    for="radio-jira"
-                                                    >Jira</label
-                                                >
-                                            </div>
-                                            <div class="form-check">
-                                                <input
-                                                    class="form-check-input"
-                                                    type="radio"
-                                                    name="task_system_type"
-                                                    id="radio-custom"
-                                                    value="CUSTOM"
-                                                    {%
-                                                    if
-                                                    config.task_system_type=="CUSTOM"
-                                                    %}checked{%
-                                                    endif
-                                                    %}
-                                                />
-                                                <label
-                                                    class="form-check-label"
-                                                    for="radio-custom"
-                                                    >Custom</label
                                                 >
                                             </div>
                                         </div>
