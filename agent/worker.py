@@ -130,12 +130,12 @@ async def run_agent_cycle_async(app: Flask, encryption_key: Fernet) -> None:
             workflow.set_entry_point("trello_fetch")
 
             def after_trello_fetch(state: AgentState) -> str:
-                return "trello_update" if state.get("trello_card_id") else END
+                return "router" if state.get("trello_card_id") else END
 
             workflow.add_conditional_edges(
                 "trello_fetch",
                 after_trello_fetch,
-                {END: END, "trello_update": "trello_update"},
+                {END: END, "router": "router"},
             )
 
             def route_after_router(state: AgentState) -> str:
