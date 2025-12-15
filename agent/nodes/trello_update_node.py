@@ -3,7 +3,7 @@ import logging
 from langchain_core.messages import AIMessage
 
 from agent.state import AgentState
-from agent.trello_adapter import (
+from agent.trello_client import (
     add_comment_to_trello_card,
     get_all_trello_lists,
     move_trello_card_to_list,

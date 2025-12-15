@@ -3,7 +3,7 @@ import logging
 from langchain_core.messages import HumanMessage
 
 from agent.state import AgentState
-from agent.trello_adapter import get_all_trello_cards, get_all_trello_lists
+from agent.trello_client import get_all_trello_cards, get_all_trello_lists
 
 logger = logging.getLogger(__name__)
 
