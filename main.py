@@ -9,6 +9,15 @@ from webapp import create_app
 
 # Main entry point
 if __name__ == "__main__":
+    import logging
+
+    logging.basicConfig(
+        level=logging.INFO,
+        format="%(name)s - %(levelname)s - %(message)s",
+    )
+    logging.getLogger("httpx").setLevel(logging.WARNING)
+    logging.getLogger("httpcore").setLevel(logging.WARNING)
+
     key = os.environ.get("ENCRYPTION_KEY")
     if not key:
         raise ValueError("ENCRYPTION_KEY is not set. Application cannot start.")

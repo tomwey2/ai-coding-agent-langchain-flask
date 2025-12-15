@@ -1,4 +1,5 @@
 import logging
+from typing import Dict
 
 from langchain_core.messages import SystemMessage
 
@@ -19,7 +20,7 @@ Output ONLY the category name: CODER, BUGFIXER, or ANALYST.
 
 
 def create_router_node(llm):
-    async def router_node(state: AgentState):
+    async def router_node(state: AgentState) -> Dict[str, str]:
         messages = state["messages"]
         response = await llm.ainvoke([SystemMessage(content=ROUTER_SYSTEM)] + messages)
 
