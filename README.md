@@ -6,7 +6,7 @@
 This project demonstrates a POC for an autonomous, containerized AI coding agent that lives in your Docker environment. 
 It operates completely unsupervised to:
 
-- **Connect** to your task management system
+- **Connect** to your task management system (Trello is currently supported).
 - **Pick up** open tickets automatically
 - **Analyze/Write** code or fix bugs
 - **Push** changes via pull requests to your remote repository
@@ -28,7 +28,7 @@ As a **Proof of Concept (POC)**, the system demonstrates the following advanced 
 
 - **Multi-Agent Architecture:** Uses **LangGraph** to route tasks to specialized sub-agents (`Coder`, `Bugfixer`, `Analyst`).
 - **Autonomous Git Operations:** Manages the full Git lifecycle—cloning, branching, committing, pushing, and pull requests—using the **Model Context Protocol (MCP)**.
-- **Task Management Integration:** Connects to external task/issue management systems (e.g. JIRA) to retrieve assignments and report status updates automatically.
+- **Task Management Integration:** Connects to external task/issue management systems (e.g. Trello, JIRA) to retrieve assignments and report status updates automatically.
 - **Resilient AI Logic:** Features advanced **self-healing mechanisms** with retry loops and iterative prompting to prevent stalling and minimize hallucinations.
 - **Dockerized & Scalable:** Runs in secure, isolated containers, allowing for effortless horizontal scaling—simply spin up additional instances to expand your virtual workforce on demand.
 
@@ -38,10 +38,10 @@ This Proof of Concept serves as the technological foundation for an upcoming sta
 
 Key milestones for professionalization include:
 
-- **Integrated Build Management & QA:** Implementation of industry-standard build tools (e.g., Maven, Gradle) directly within the agent's environment. Agents will compile code and execute local tests before committing, acting as a quality gate to ensure only functional, bug-free code enters the repository.
-- **Active Code Reviews:** Agents will evolve from pure contributors to reviewers. They will analyze open Pull Requests, provide constructive feedback on code quality and security, and suggest optimizations—acting as an automated senior developer.
-- **Collaborative Swarm Intelligence:** Moving beyond isolated tasks, agents will be capable of communicating and collaborating with each other. This "swarm" capability will allow multiple agents to work jointly on complex, large-scale features, ensuring architectural consistency across the codebase.
-- **Choose your preferred LLM** Support of other LLM providers, included open source models that run locally. 
+- [ ] **Integrated Build Management & QA:** Implementation of industry-standard build tools (e.g., Maven, Gradle) directly within the agent's environment. Agents will compile code and execute local tests before committing, acting as a quality gate to ensure only functional, bug-free code enters the repository.
+- [ ] **Active Code Reviews:** Agents will evolve from pure contributors to reviewers. They will analyze open Pull Requests, provide constructive feedback on code quality and security, and suggest optimizations—acting as an automated senior developer.
+- [ ] **Collaborative Swarm Intelligence:** Moving beyond isolated tasks, agents will be capable of communicating and collaborating with each other. This "swarm" capability will allow multiple agents to work jointly on complex, large-scale features, ensuring architectural consistency across the codebase.
+- [X] **Choose your preferred LLM** Support of other LLM providers, included open source models that run locally. 
 
 **Commercialization & Next Steps** To realize this vision, we are transitioning this project into a dedicated startup. We plan to accelerate development through an upcoming crowdfunding campaign.
 

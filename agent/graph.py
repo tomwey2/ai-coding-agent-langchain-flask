@@ -1,5 +1,5 @@
+from langchain.chat_models import BaseChatModel
 from langchain_core.messages import AIMessage
-from langchain_mistralai.chat_models import ChatMistralAI
 from langgraph.graph import END, StateGraph
 from langgraph.prebuilt import ToolNode
 
@@ -14,7 +14,7 @@ from agent.state import AgentState
 
 
 def create_workflow(
-    llm: ChatMistralAI,
+    llm: BaseChatModel,
     coder_tools: list,
     analyst_tools: list,
     repo_url: str,

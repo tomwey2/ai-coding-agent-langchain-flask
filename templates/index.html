@@ -45,7 +45,7 @@
                                                 <label
                                                     for="trello_api_key"
                                                     class="form-label"
-                                                    >API Key</label
+                                                    >Trello API Key</label
                                                 >
                                                 <input
                                                     type="text"
@@ -59,7 +59,7 @@
                                                 <label
                                                     for="trello_api_token"
                                                     class="form-label"
-                                                    >API Token</label
+                                                    >Trello API Token</label
                                                 >
                                                 <input
                                                     type="password"
@@ -87,7 +87,8 @@
                                                 <label
                                                     for="trello_readfrom_list"
                                                     class="form-label"
-                                                    >Read first card from list</label
+                                                    >Read first card from
+                                                    list</label
                                                 >
                                                 <input
                                                     type="text"
@@ -101,7 +102,8 @@
                                                 <label
                                                     for="trello_moveto_list"
                                                     class="form-label"
-                                                    >Move updated card to list</label
+                                                    >Move updated card to
+                                                    list</label
                                                 >
                                                 <input
                                                     type="text"
@@ -203,6 +205,97 @@
                                                 for="is_active"
                                                 >Activate Agent Polling</label
                                             >
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                            <!-- LLM Provider Card -->
+                            <div class="col-12">
+                                <div class="card h-100 shadow-sm">
+                                    <div class="card-header">
+                                        <h5>LLM Configuration</h5>
+                                    </div>
+                                    <div class="card-body">
+                                        <div class="mb-3">
+                                            <label
+                                                for="llm_provider"
+                                                class="form-label"
+                                                >AI Provider</label
+                                            >
+                                            <select
+                                                class="form-select"
+                                                id="llm_provider"
+                                                name="llm_provider"
+                                            >
+                                                <option
+                                                    value="mistral"
+                                                    {%
+                                                    if
+                                                    form_data.llm_provider=="mistral"
+                                                    %}selected{%
+                                                    endif
+                                                    %}
+                                                >
+                                                    Mistral
+                                                </option>
+                                                <option
+                                                    value="openai"
+                                                    {%
+                                                    if
+                                                    form_data.llm_provider=="openai"
+                                                    %}selected{%
+                                                    endif
+                                                    %}
+                                                >
+                                                    OpenAI
+                                                </option>
+                                                <option
+                                                    value="google"
+                                                    {%
+                                                    if
+                                                    form_data.llm_provider=="google"
+                                                    %}selected{%
+                                                    endif
+                                                    %}
+                                                >
+                                                    Google
+                                                </option>
+                                            </select>
+                                        </div>
+                                        <div class="mb-3">
+                                            <label
+                                                for="llm_model"
+                                                class="form-label"
+                                                >Model Name</label
+                                            >
+                                            <input
+                                                type="text"
+                                                class="form-control"
+                                                id="llm_model"
+                                                name="llm_model"
+                                                placeholder="e.g. mistral-large-latest or gpt-4o"
+                                                value="{{ form_data.llm_model or '' }}"
+                                            />
+                                            <div class="form-text">
+                                                The exact model name of the supplier.
+                                            </div>
+                                        </div>
+                                        <div class="mb-3">
+                                            <label
+                                                for="llm_temperature"
+                                                class="form-label"
+                                                >Temperature (Creativity) <span id="temperature_value">{{ form_data.llm_temperature or 0.0 }}</span></label
+                                            >
+                                            <input
+                                                type="range"
+                                                class="form-range"
+                                                id="llm_temperature"
+                                                name="llm_temperature"
+                                                min="0.0"
+                                                max="1.0"
+                                                step="0.1"
+                                                value="{{ form_data.llm_temperature or 0.0 }}"
+                                            />
                                         </div>
                                     </div>
                                 </div>
@@ -328,6 +421,13 @@
             radioButtons.forEach((radio) => {
                 radio.addEventListener("change", updateActiveTaskSystem);
             });
+
+            const temperature_slider = document.getElementById("llm_temperature");
+            const temperature_value = document.getElementById("temperature_value");
+            temperature_slider.oninput = function() {
+                temperature_value.innerHTML = this.value;
+            }
+
         </script>
     </body>
 </html>
