@@ -89,7 +89,8 @@ def create_app(encryption_key: Fernet) -> Flask:
 
             llm_config = {
                 "llm_provider": request.form.get("llm_provider"),
-                "llm_model": request.form.get("llm_model"),
+                "llm_model_large": request.form.get("llm_model_large"),
+                "llm_model_small": request.form.get("llm_model_small"),
                 "llm_temperature": request.form.get("llm_temperature"),
             }
             new_config_data.update(llm_config)
@@ -154,9 +155,8 @@ def create_app(encryption_key: Fernet) -> Flask:
 
                 # LLM data
                 form_data["llm_provider"] = saved_data.get("llm_provider", "mistral")
-                form_data["llm_model"] = saved_data.get(
-                    "llm_model", "mistral-large-latest"
-                )
+                form_data["llm_model_large"] = saved_data.get("llm_model_large")
+                form_data["llm_model_small"] = saved_data.get("llm_model_small")
                 form_data["llm_temperature"] = saved_data.get("llm_temperature", 0.0)
 
             except (InvalidToken, TypeError, AttributeError, json.JSONDecodeError):

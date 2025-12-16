@@ -95,9 +95,10 @@ async def run_agent_cycle_async(app: Flask, encryption_key: Fernet) -> None:
             coder_tools = git_tools + read_tools + write_tools + base_tools
 
             # --- LLM and Graph Creation ---
-            llm: BaseChatModel = get_llm(sys_config)
+            llm_large: BaseChatModel = get_llm(sys_config, True)
+            llm_small: BaseChatModel = get_llm(sys_config, True)
             workflow: StateGraph = create_workflow(
-                llm, coder_tools, analyst_tools, repo_url, sys_config
+                llm_large, llm_small, coder_tools, analyst_tools, repo_url, sys_config
             )
 
             # --- Graph Execution ---

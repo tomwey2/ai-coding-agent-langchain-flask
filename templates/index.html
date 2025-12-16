@@ -264,27 +264,44 @@
                                         </div>
                                         <div class="mb-3">
                                             <label
-                                                for="llm_model"
+                                                for="llm_model_large"
                                                 class="form-label"
-                                                >Model Name</label
+                                                >LLM for complex tasks</label
                                             >
                                             <input
                                                 type="text"
                                                 class="form-control"
-                                                id="llm_model"
-                                                name="llm_model"
+                                                id="llm_model_large"
+                                                name="llm_model_large"
                                                 placeholder="e.g. mistral-large-latest or gpt-4o"
-                                                value="{{ form_data.llm_model or '' }}"
+                                                value="{{ form_data.llm_model_large or '' }}"
                                             />
-                                            <div class="form-text">
-                                                The exact model name of the supplier.
-                                            </div>
+                                        </div>
+                                        <div class="mb-3">
+                                            <label
+                                                for="llm_model_small"
+                                                class="form-label"
+                                                >LLM for simple tasks</label
+                                            >
+                                            <input
+                                                type="text"
+                                                class="form-control"
+                                                id="llm_model_small"
+                                                name="llm_model_small"
+                                                placeholder="e.g. mistral-large-latest or gpt-4o"
+                                                value="{{ form_data.llm_model_small or '' }}"
+                                            />
                                         </div>
                                         <div class="mb-3">
                                             <label
                                                 for="llm_temperature"
                                                 class="form-label"
-                                                >Temperature (Creativity) <span id="temperature_value">{{ form_data.llm_temperature or 0.0 }}</span></label
+                                                >Temperature (Creativity)
+                                                <span id="temperature_value"
+                                                    >{{
+                                                    form_data.llm_temperature or
+                                                    0.0 }}</span
+                                                ></label
                                             >
                                             <input
                                                 type="range"
@@ -422,12 +439,13 @@
                 radio.addEventListener("change", updateActiveTaskSystem);
             });
 
-            const temperature_slider = document.getElementById("llm_temperature");
-            const temperature_value = document.getElementById("temperature_value");
-            temperature_slider.oninput = function() {
+            const temperature_slider =
+                document.getElementById("llm_temperature");
+            const temperature_value =
+                document.getElementById("temperature_value");
+            temperature_slider.oninput = function () {
                 temperature_value.innerHTML = this.value;
-            }
-
+            };
         </script>
     </body>
 </html>

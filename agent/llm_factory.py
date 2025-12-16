@@ -7,7 +7,7 @@ from langchain_openai import ChatOpenAI
 from pydantic import SecretStr
 
 
-def get_llm(config: dict) -> BaseChatModel:
+def get_llm(config: dict, large: bool = True) -> BaseChatModel:
     """
     Factory function to get an LLM instance based on the provider.
 
@@ -17,7 +17,7 @@ def get_llm(config: dict) -> BaseChatModel:
     provider = config.get("llm_provider")
     if not provider:
         raise ValueError("llm_provider not specified")
-    model = config.get("llm_model")
+    model = config.get("llm_model_large") if large else config.get("llm_model_small")
     if not model:
         raise ValueError("llm_model not specified")
     temperature = float(config.get("llm_temperature", 0.0))
