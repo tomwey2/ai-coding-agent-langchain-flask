@@ -41,11 +41,20 @@ def create_app(encryption_key: Fernet) -> Flask:
                 polling_interval = 60  # Fallback
 
             # Create JSON from the specific fields for the selected system
-            new_config_data = {}
+
+            # Decrypt and load existing data first, to not lose settings from other cards
+            try:
+                decrypted_json = encryption_key.decrypt(
+                    config.system_config_json.encode()
+                ).decode()
+                new_config_data = json.loads(decrypted_json or "{}")
+            except (InvalidToken, TypeError, AttributeError, json.JSONDecodeError):
+                new_config_data = {}  # Start fresh if decryption fails or data is invalid
+
             system_type = config.task_system_type
 
             if system_type == "TRELLO":
-                new_config_data = {
+                trello_data = {
                     "env": {
                         "TRELLO_API_KEY": request.form.get("trello_api_key"),
                         "TRELLO_TOKEN": request.form.get("trello_api_token"),
@@ -57,8 +66,9 @@ def create_app(encryption_key: Fernet) -> Flask:
                     "trello_readfrom_list": request.form.get("trello_readfrom_list"),
                     "trello_moveto_list": request.form.get("trello_moveto_list"),
                 }
+                new_config_data.update(trello_data)
             elif system_type == "JIRA":
-                new_config_data = {
+                jira_data = {
                     "env": {
                         "JIRA_URL": os.environ.get(
                             "JIRA_URL"
@@ -68,12 +78,22 @@ def create_app(encryption_key: Fernet) -> Flask:
                     },
                     "jql": request.form.get("jira_jql_query"),
                 }
+                new_config_data.update(jira_data)
             elif system_type == "CUSTOM":
-                new_config_data = {
+                custom_data = {
                     "agent_username": request.form.get("custom_username"),
                     "agent_password": request.form.get("custom_password"),
                     "target_project_id": request.form.get("custom_project_id"),
                 }
+                new_config_data.update(custom_data)
+
+            llm_config = {
+                "llm_provider": request.form.get("llm_provider"),
+                "llm_model_large": request.form.get("llm_model_large"),
+                "llm_model_small": request.form.get("llm_model_small"),
+                "llm_temperature": request.form.get("llm_temperature"),
+            }
+            new_config_data.update(llm_config)
 
             # Encrypt the JSON configuration
             json_config_str = json.dumps(new_config_data, indent=2)
@@ -132,6 +152,12 @@ def create_app(encryption_key: Fernet) -> Flask:
                 form_data["custom_username"] = saved_data.get("agent_username")
                 form_data["custom_password"] = saved_data.get("agent_password")
                 form_data["custom_project_id"] = saved_data.get("target_project_id")
+
+                # LLM data
+                form_data["llm_provider"] = saved_data.get("llm_provider", "mistral")
+                form_data["llm_model_large"] = saved_data.get("llm_model_large")
+                form_data["llm_model_small"] = saved_data.get("llm_model_small")
+                form_data["llm_temperature"] = saved_data.get("llm_temperature", 0.0)
 
             except (InvalidToken, TypeError, AttributeError, json.JSONDecodeError):
                 flash(

@@ -1,5 +1,5 @@
+from langchain.chat_models import BaseChatModel
 from langchain_core.messages import AIMessage
-from langchain_mistralai.chat_models import ChatMistralAI
 from langgraph.graph import END, StateGraph
 from langgraph.prebuilt import ToolNode
 
@@ -14,17 +14,18 @@ from agent.state import AgentState
 
 
 def create_workflow(
-    llm: ChatMistralAI,
+    llm_large: BaseChatModel,
+    llm_small: BaseChatModel,
     coder_tools: list,
     analyst_tools: list,
     repo_url: str,
     sys_config: dict,
 ) -> StateGraph:
     # --- Node Creation ---
-    router_node = create_router_node(llm)
-    coder_node = create_coder_node(llm, coder_tools, repo_url)
-    bugfixer_node = create_bugfixer_node(llm, coder_tools, repo_url)
-    analyst_node = create_analyst_node(llm, analyst_tools, repo_url)
+    router_node = create_router_node(llm_small)
+    coder_node = create_coder_node(llm_large, coder_tools, repo_url)
+    bugfixer_node = create_bugfixer_node(llm_large, coder_tools, repo_url)
+    analyst_node = create_analyst_node(llm_large, analyst_tools, repo_url)
     correction_node = create_correction_node()
     tools_coder_node = ToolNode(coder_tools)
     tools_analyst_node = ToolNode(analyst_tools)

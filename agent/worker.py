@@ -7,11 +7,11 @@ from contextlib import AsyncExitStack
 
 from cryptography.fernet import Fernet
 from flask import Flask
-from langchain_mistralai.chat_models import ChatMistralAI
+from langchain.chat_models import BaseChatModel
 from langgraph.graph import StateGraph
 
 from agent.graph import create_workflow
-from agent.llm_setup import get_llm_model
+from agent.llm_factory import get_llm
 from agent.local_tools import (
     create_github_pr,
     ensure_repository_exists,
@@ -95,9 +95,10 @@ async def run_agent_cycle_async(app: Flask, encryption_key: Fernet) -> None:
             coder_tools = git_tools + read_tools + write_tools + base_tools
 
             # --- LLM and Graph Creation ---
-            llm: ChatMistralAI = get_llm_model(config)
+            llm_large: BaseChatModel = get_llm(sys_config, True)
+            llm_small: BaseChatModel = get_llm(sys_config, True)
             workflow: StateGraph = create_workflow(
-                llm, coder_tools, analyst_tools, repo_url, sys_config
+                llm_large, llm_small, coder_tools, analyst_tools, repo_url, sys_config
             )
 
             # --- Graph Execution ---

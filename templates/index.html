@@ -45,7 +45,7 @@
                                                 <label
                                                     for="trello_api_key"
                                                     class="form-label"
-                                                    >API Key</label
+                                                    >Trello API Key</label
                                                 >
                                                 <input
                                                     type="text"
@@ -59,7 +59,7 @@
                                                 <label
                                                     for="trello_api_token"
                                                     class="form-label"
-                                                    >API Token</label
+                                                    >Trello API Token</label
                                                 >
                                                 <input
                                                     type="password"
@@ -87,7 +87,8 @@
                                                 <label
                                                     for="trello_readfrom_list"
                                                     class="form-label"
-                                                    >Read first card from list</label
+                                                    >Read first card from
+                                                    list</label
                                                 >
                                                 <input
                                                     type="text"
@@ -101,7 +102,8 @@
                                                 <label
                                                     for="trello_moveto_list"
                                                     class="form-label"
-                                                    >Move updated card to list</label
+                                                    >Move updated card to
+                                                    list</label
                                                 >
                                                 <input
                                                     type="text"
@@ -129,6 +131,77 @@
                                     </div>
                                 </div>
                             </div>
+                                                        <!-- Repository Card -->
+                            <div class="col-12">
+                                <div class="card h-100 shadow-sm">
+                                    <div class="card-header">
+                                        <h5>📦 Source Code</h5>
+                                    </div>
+                                    <div class="card-body">
+                                        <div class="mb-3">
+                                            <label
+                                                for="repo_type"
+                                                class="form-label"
+                                                >Repository Type</label
+                                            >
+                                            <select
+                                                class="form-select"
+                                                id="repo_type"
+                                                name="repo_type"
+                                            >
+                                                <option
+                                                    value="GITHUB"
+                                                    {%
+                                                    if
+                                                    config.repo_type=="GITHUB"
+                                                    %}selected{%
+                                                    endif
+                                                    %}
+                                                >
+                                                    GitHub
+                                                </option>
+                                                <option
+                                                    value="BITBUCKET"
+                                                    {%
+                                                    if
+                                                    config.repo_type=="BITBUCKET"
+                                                    %}selected{%
+                                                    endif
+                                                    %}
+                                                >
+                                                    Bitbucket
+                                                </option>
+                                                <option
+                                                    value="GITLAB"
+                                                    {%
+                                                    if
+                                                    config.repo_type=="GITLAB"
+                                                    %}selected{%
+                                                    endif
+                                                    %}
+                                                >
+                                                    GitLab
+                                                </option>
+                                            </select>
+                                        </div>
+                                        <div class="mb-3">
+                                            <label
+                                                for="github_repo_url"
+                                                class="form-label"
+                                                >Repository URL</label
+                                            >
+                                            <input
+                                                type="text"
+                                                class="form-control"
+                                                id="github_repo_url"
+                                                name="github_repo_url"
+                                                value="{{ config.github_repo_url }}"
+                                            />
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+
                         </div>
                     </div>
 
@@ -207,71 +280,109 @@
                                     </div>
                                 </div>
                             </div>
-                            <!-- Repository Card -->
+                            <!-- LLM Provider Card -->
                             <div class="col-12">
                                 <div class="card h-100 shadow-sm">
                                     <div class="card-header">
-                                        <h5>📦 Source Code</h5>
+                                        <h5>LLM Configuration</h5>
                                     </div>
                                     <div class="card-body">
                                         <div class="mb-3">
                                             <label
-                                                for="repo_type"
+                                                for="llm_provider"
                                                 class="form-label"
-                                                >Repository Type</label
+                                                >AI Provider</label
                                             >
                                             <select
                                                 class="form-select"
-                                                id="repo_type"
-                                                name="repo_type"
+                                                id="llm_provider"
+                                                name="llm_provider"
                                             >
                                                 <option
-                                                    value="GITHUB"
+                                                    value="mistral"
                                                     {%
                                                     if
-                                                    config.repo_type=="GITHUB"
+                                                    form_data.llm_provider=="mistral"
                                                     %}selected{%
                                                     endif
                                                     %}
                                                 >
-                                                    GitHub
+                                                    Mistral
                                                 </option>
                                                 <option
-                                                    value="BITBUCKET"
+                                                    value="openai"
                                                     {%
                                                     if
-                                                    config.repo_type=="BITBUCKET"
+                                                    form_data.llm_provider=="openai"
                                                     %}selected{%
                                                     endif
                                                     %}
                                                 >
-                                                    Bitbucket
+                                                    OpenAI
                                                 </option>
                                                 <option
-                                                    value="GITLAB"
+                                                    value="google"
                                                     {%
                                                     if
-                                                    config.repo_type=="GITLAB"
+                                                    form_data.llm_provider=="google"
                                                     %}selected{%
                                                     endif
                                                     %}
                                                 >
-                                                    GitLab
+                                                    Google
                                                 </option>
                                             </select>
                                         </div>
                                         <div class="mb-3">
                                             <label
-                                                for="github_repo_url"
+                                                for="llm_model_large"
                                                 class="form-label"
-                                                >Repository URL</label
+                                                >LLM for complex tasks</label
                                             >
                                             <input
                                                 type="text"
                                                 class="form-control"
-                                                id="github_repo_url"
-                                                name="github_repo_url"
-                                                value="{{ config.github_repo_url }}"
+                                                id="llm_model_large"
+                                                name="llm_model_large"
+                                                placeholder="e.g. mistral-large-latest or gpt-4o"
+                                                value="{{ form_data.llm_model_large or '' }}"
+                                            />
+                                        </div>
+                                        <div class="mb-3">
+                                            <label
+                                                for="llm_model_small"
+                                                class="form-label"
+                                                >LLM for simple tasks</label
+                                            >
+                                            <input
+                                                type="text"
+                                                class="form-control"
+                                                id="llm_model_small"
+                                                name="llm_model_small"
+                                                placeholder="e.g. mistral-large-latest or gpt-4o"
+                                                value="{{ form_data.llm_model_small or '' }}"
+                                            />
+                                        </div>
+                                        <div class="mb-3">
+                                            <label
+                                                for="llm_temperature"
+                                                class="form-label"
+                                                >Temperature (Creativity)
+                                                <span id="temperature_value"
+                                                    >{{
+                                                    form_data.llm_temperature or
+                                                    0.0 }}</span
+                                                ></label
+                                            >
+                                            <input
+                                                type="range"
+                                                class="form-range"
+                                                id="llm_temperature"
+                                                name="llm_temperature"
+                                                min="0.0"
+                                                max="1.0"
+                                                step="0.1"
+                                                value="{{ form_data.llm_temperature or 0.0 }}"
                                             />
                                         </div>
                                     </div>
@@ -328,6 +439,14 @@
             radioButtons.forEach((radio) => {
                 radio.addEventListener("change", updateActiveTaskSystem);
             });
+
+            const temperature_slider =
+                document.getElementById("llm_temperature");
+            const temperature_value =
+                document.getElementById("temperature_value");
+            temperature_slider.oninput = function () {
+                temperature_value.innerHTML = this.value;
+            };
         </script>
     </body>
 </html>
