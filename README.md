@@ -31,6 +31,7 @@ As a **Proof of Concept (POC)**, the system demonstrates the following advanced 
 - **Task Management Integration:** Connects to external task/issue management systems (e.g. Trello, JIRA) to retrieve assignments and report status updates automatically.
 - **Resilient AI Logic:** Features advanced **self-healing mechanisms** with retry loops and iterative prompting to prevent stalling and minimize hallucinations.
 - **Dockerized & Scalable:** Runs in secure, isolated containers, allowing for effortless horizontal scaling—simply spin up additional instances to expand your virtual workforce on demand.
+- **LLM Selection:** Choose AI provider (OpenAI, Google, Mistral) and select a large LLMs for complex tasks and a small LLM for simple tasks, ensuring high-quality and precise results at optimized costs.
 
 ## Future Roadmap: From POC to Professional SaaS
 
@@ -136,35 +137,65 @@ stateDiagram-v2
 ### Prerequisites
 
 * **Docker** installed on your machine.
-* A **Mistral AI API Key** (requires a subscription/credits).
+* A **Mistral AI API Key** or **OpenAI API Key** or **Google AI API Key** (requires a subscription/credits).
 * A **GitHub Personal Access Token** (Classic) with `repo` scope.
-* A running Task Management API (or a mock server).
+* A **Trello Board**, for example with the Trello Agile Sprint Board Template (free account available)
+* A **Trello API Key and Token** 
+* A personal **GitHub repository** with a example program. You can copy my example repository to try it out: "calculator-spring-docker-jenkins".
 
-### 1. Generate Encryption Key
+### Prepare your running environment
+
+#### 1. Clone this Repository at your local computer
+
+#### 2. Generate Encryption Key
 
 ```bash
-python3 -c "from cryptography.fernet import Fernet; print(Fernet.generate_key().decode())"
+export FERNET_KEY=$(python3 -c "from cryptography.fernet import Fernet; print(Fernet.generate_key().decode())")
 ```
 
-### 2. Build the Image
+#### 3. Build the Image
 
 ```bash
 docker build -t ai-coding-agent .
 ```
 
-### 3. Run the Container
-You must pass your API keys as environment variables.
+#### 4. Run the Container
+You must pass your API keys as environment variables. 
 
 ```bash
 docker run \
-  -e MISTRAL_API_KEY="your_mistral_api_key" \
-  -e GITHUB_TOKEN="your_github_pat" \
-  -e ENCRYPTION_KEY="your_generated_encryption_key" \
+  -e MISTRAL_API_KEY=$MISTRAL_API_KEY \
+  -e GITHUB_TOKEN=$GHCR_AI_CODING_AGENT_TOKEN \
+  -e ENCRYPTION_KEY=$FERNET_KEY \
   -p 5000:5000 \
   -v $(pwd)/instance:/app/instance \
   --name ai-coding-agent \
   ai-coding-agent
 ```
+
+This is an example with Mistral. If you choose OpenAI, then you replace `MISTRAL_API_KEY` with `OPENAI_API_KEY`.
+
+### Run a Test Case 
+#### 5. Configure the Coding Agent
+Open the agent dashboard in browser, e.g. http://localhost:5000, and fill in the required fields. Press "Save Configuration". The data are stored in a SQLite database encrypted using the Fernet key.
+
+<img src="./dashboard.png" title="Dashboard" alt="Dashboard">
+
+#### 6. Prepare your Trello Board
+Create new Cards at your Trello board in the list "Backlog" and move one into the list "Sprint Backlog". Here you can see an example:
+
+<img src="./trello-board.png" title="Trello Board" alt="Trello Board">
+
+#### 7. Agent runs automatically
+The agent runs automatically when a new card is created in the "Sprint Backlog" list. It will generate or change the code based on the card description and create a pull request to your GitHub repository.
+After the PR creation it creates a comment in the card with the link to the pull request and move it to the list "In Review".
+
+#### 8. Check the Results
+Runs the coding agents successfully, check the card at your Trello board. There it should be a link to the pull request in GitHub. Check the results in the pull request. 
+
+**Please note: This is still a proof of concept.**
+
+If the coding agent made a mistake, please let me know, e.g. on LinkedIn. 
 
 ## License
 [Apache License 2.0](LICENSE)
