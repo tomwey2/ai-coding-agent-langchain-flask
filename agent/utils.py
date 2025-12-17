@@ -30,3 +30,25 @@ def sanitize_response(response: AIMessage) -> AIMessage:
     # Das manipulierte Objekt zurückgeben
     response.tool_calls = valid_tools
     return response
+
+
+def save_graph_as_png(graph):
+    # 1. Die Bilddaten in einer Variable speichern (es sind Bytes)
+    png_bytes = graph.get_graph().draw_mermaid_png()
+
+    # 2. Datei im 'write binary' Modus ("wb") öffnen und speichern
+    with open("workflow_graph.png", "wb") as f:
+        f.write(png_bytes)
+
+    print("Graph wurde als 'workflow_graph.png' gespeichert.")
+
+
+def save_graph_as_mermaid(graph):
+    # 1. Die Bilddaten in einer Variable speichern (es sind Bytes)
+    mermaid_code = graph.get_graph().draw_mermaid()
+
+    # 2. Datei im 'write binary' Modus ("wb") öffnen und speichern
+    with open("workflow_graph.mmd", "w") as f:
+        f.write(mermaid_code)
+
+    print("Graph wurde als 'workflow_graph.mmd' gespeichert.")
