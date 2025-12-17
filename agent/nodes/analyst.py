@@ -1,5 +1,6 @@
 import logging
 
+from langchain.chat_models import BaseChatModel
 from langchain_core.messages import SystemMessage
 
 from agent.state import AgentState
@@ -29,7 +30,7 @@ WORKFLOW:
 """
 
 
-def create_analyst_node(llm, tools, repo_url):
+def create_analyst_node(llm: BaseChatModel, tools, repo_url):
     async def analyst_node(state: AgentState):
         # Prompt mit Repo-URL anreichern
         sys_msg = f"{ANALYST_SYSTEM_PROMPT}\nRepo: {repo_url}\n\nREMINDER: Use 'log_thought' to plan. Use 'finish_task' to report your findings."
