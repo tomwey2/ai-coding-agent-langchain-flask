@@ -26,6 +26,7 @@ dependencies = [
     { name = "langgraph" },
     { name = "mcp" },
     { name = "mcp-server-git" },
+    { name = "python-dotenv" },
     { name = "requests" },
 ]
 
@@ -45,6 +46,7 @@ requires-dist = [
     { name = "langgraph", specifier = ">=1.0.1" },
     { name = "mcp", specifier = ">=1.22.0" },
     { name = "mcp-server-git", specifier = ">=2025.9.25" },
+    { name = "python-dotenv", specifier = ">=1.2.1" },
     { name = "requests", specifier = ">=2.32.5" },
 ]
 
