@@ -52,58 +52,48 @@ Key milestones for professionalization include:
 The system is built upon a stateful, multi-agent architecture powered by LangGraph. Instead of a monolithic process, the execution flow is intelligently orchestrated across specialized nodes.
 
 ```mermaid
-stateDiagram-v2
-    state "Trello Fetch" as fetch
-    state "Router" as router
-    state "Trello Update" as update
-    
-    state "Coder" as coder
-    state "Bugfixer" as bugfixer
-    state "Analyst" as analyst
-    
-    state "Coding Tools Execution" as coder_tools
-    state "Analyst Tools Execution" as analyst_tools
-    state "Correction (No Tool used)" as correction
-
-    [*] --> fetch
-    
-    %% Start Logic
-    fetch --> router : Card Found
-    fetch --> [*] : No Cards
-
-    %% Router Logic
-    router --> coder : type='feature'
-    router --> bugfixer : type='bug'
-    router --> analyst : type='analysis'
-
-    %% Agent Logic (check_exit) - 3 Wege!
-    
-    %% 1. Weg: Tool Nutzung
-    coder --> coder_tools : calls tool
-    bugfixer --> coder_tools : calls tool
-    analyst --> analyst_tools : calls tool
-
-    %% 2. Weg: Finish Task
-    coder --> update : calls finish_task
-    bugfixer --> update : calls finish_task
-    analyst --> update : calls finish_task
-
-    %% 3. Weg: Kein Tool (Labert nur) -> Correction
-    coder --> correction : no tool calls
-    bugfixer --> correction : no tool calls
-    analyst --> correction : no tool calls
-
-    %% Rückwege (route_back)
-    coder_tools --> coder : back to agent
-    coder_tools --> bugfixer : back to agent
-    analyst_tools --> analyst : back to agent
-
-    correction --> coder : back to agent
-    correction --> bugfixer : back to agent
-    correction --> analyst : back to agent
-
-    %% Ende
-    update --> [*]
+---
+config:
+  flowchart:
+    curve: linear
+---
+graph TD;
+	__start__([<p>__start__</p>]):::first
+	trello_fetch(trello_fetch)
+	router(router)
+	coder(coder)
+	bugfixer(bugfixer)
+	analyst(analyst)
+	tools_coder(tools_coder)
+	tools_analyst(tools_analyst)
+	correction(correction)
+	trello_update(trello_update)
+	__end__([<p>__end__</p>]):::last
+	__start__ --> trello_fetch;
+	analyst -. &nbsp;fail&nbsp; .-> correction;
+	analyst -. &nbsp;tools&nbsp; .-> tools_analyst;
+	analyst -. &nbsp;finish&nbsp; .-> trello_update;
+	bugfixer -. &nbsp;fail&nbsp; .-> correction;
+	bugfixer -. &nbsp;tools&nbsp; .-> tools_coder;
+	bugfixer -. &nbsp;finish&nbsp; .-> trello_update;
+	coder -. &nbsp;fail&nbsp; .-> correction;
+	coder -. &nbsp;tools&nbsp; .-> tools_coder;
+	coder -. &nbsp;finish&nbsp; .-> trello_update;
+	correction -.-> analyst;
+	correction -.-> bugfixer;
+	correction -.-> coder;
+	router -.-> analyst;
+	router -.-> bugfixer;
+	router -.-> coder;
+	tools_analyst -.-> analyst;
+	tools_coder -.-> bugfixer;
+	tools_coder -.-> coder;
+	trello_fetch -.-> __end__;
+	trello_fetch -.-> router;
+	trello_update --> __end__;
+	classDef default fill:#f2f0ff,line-height:1.2
+	classDef first fill-opacity:0
+	classDef last fill:#bfb6fc
 ```
 
 
@@ -150,8 +140,10 @@ stateDiagram-v2
 #### 2. Generate Encryption Key
 
 ```bash
-export FERNET_KEY=$(python3 -c "from cryptography.fernet import Fernet; print(Fernet.generate_key().decode())")
+python3 -c "from cryptography.fernet import Fernet; print(Fernet.generate_key().decode())"
 ```
+
+Put the key into the `.env` file.
 
 #### 3. Build the Image
 
@@ -164,9 +156,9 @@ You must pass your API keys as environment variables.
 
 ```bash
 docker run \
+  --env-file .env \
   -e MISTRAL_API_KEY=$MISTRAL_API_KEY \
   -e GITHUB_TOKEN=$GHCR_AI_CODING_AGENT_TOKEN \
-  -e ENCRYPTION_KEY=$FERNET_KEY \
   -p 5000:5000 \
   -v $(pwd)/instance:/app/instance \
   --name ai-coding-agent \

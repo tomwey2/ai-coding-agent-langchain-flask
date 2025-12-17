@@ -19,5 +19,6 @@ dependencies = [
     "langgraph>=1.0.1",
     "mcp>=1.22.0",
     "mcp-server-git>=2025.9.25",
+    "python-dotenv>=1.2.1",
     "requests>=2.32.5",
 ]

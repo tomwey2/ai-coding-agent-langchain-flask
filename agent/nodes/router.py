@@ -1,7 +1,8 @@
 import logging
-from typing import Dict
+from typing import Dict, Literal
 
 from langchain_core.messages import SystemMessage
+from pydantic import BaseModel, Field
 
 from agent.state import AgentState
 
@@ -11,34 +12,32 @@ ROUTER_SYSTEM = """You are the Senior Technical Lead.
 Your job is to analyze the incoming task and route it to the correct specialist.
 
 OPTIONS:
-1. 'CODER': For implementing new features, creating new files, or refactoring.
-2. 'BUGFIXER': For fixing errors, debugging, or solving issues in existing code.
-3. 'ANALYST': For explaining code, reviewing architecture, or answering questions (NO code changes).
-
-Output ONLY the category name: CODER, BUGFIXER, or ANALYST.
+1. 'coder': For implementing new features, creating new files, or refactoring.
+2. 'bugfixer': For fixing errors, debugging, or solving issues in existing code.
+3. 'analyst': For explaining code, reviewing architecture, or answering questions (NO code changes).
 """
 
 
+class RouterDecision(BaseModel):
+    """Classify the incoming task into the correct category."""
+
+    role: Literal["coder", "bugfixer", "analyst"] = Field(
+        ..., description="The specific role needed to solve the task."
+    )
+
+
 def create_router_node(llm):
+    structured_llm = llm.with_structured_output(RouterDecision)
+
     async def router_node(state: AgentState) -> Dict[str, str]:
         messages = state["messages"]
-        response = await llm.ainvoke([SystemMessage(content=ROUTER_SYSTEM)] + messages)
+        response = await structured_llm.ainvoke(
+            [SystemMessage(content=ROUTER_SYSTEM)] + messages
+        )
 
-        raw = response.content
-        if isinstance(raw, list):
-            txt = "".join([x if isinstance(x, str) else x.get("text", "") for x in raw])
-        else:
-            txt = str(raw)
+        logger.info(f"Router decided: {response.role}")
 
-        decision = txt.strip().upper()
-        if "BUG" in decision:
-            decision = "BUGFIXER"
-        elif "ANALYST" in decision:
-            decision = "ANALYST"
-        else:
-            decision = "CODER"
-
-        logger.info(f"Router decided: {decision}")
-        return {"next_step": decision}
+        # Rückgabe als String für den Graph
+        return {"next_step": response.role}
 
     return router_node

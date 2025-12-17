@@ -46,88 +46,69 @@ def create_workflow(
 
     workflow.set_entry_point("trello_fetch")
 
-    def after_trello_fetch(state: AgentState) -> str:
-        return "router" if state.get("trello_card_id") else END
-
     workflow.add_conditional_edges(
         "trello_fetch",
-        after_trello_fetch,
+        # if there is a card go to router otherwise end
+        lambda state: "router" if state.get("trello_card_id") else END,
         {END: END, "router": "router"},
     )
 
-    def route_after_router(state: AgentState) -> str:
-        step = state.get("next_step", "coder").lower()
-        if step in ["coder", "bugfixer", "analyst"]:
-            return step
-        return "coder"
-
     workflow.add_conditional_edges(
         "router",
-        route_after_router,
+        lambda state: state.get("next_step", "coder"),
         {"coder": "coder", "bugfixer": "bugfixer", "analyst": "analyst"},
     )
 
-    def route_coder_exit(state: AgentState) -> str:
+    def check_agent_exit(state: AgentState) -> str:
         last_msg = state["messages"][-1]
         if not isinstance(last_msg, AIMessage) or not last_msg.tool_calls:
-            return "correction"
+            return "fail"
         if any(call["name"] == "finish_task" for call in last_msg.tool_calls):
-            return "trello_update"
-        return "tools_coder"
-
-    def route_analyst_exit(state: AgentState) -> str:
-        last_msg = state["messages"][-1]
-        if not isinstance(last_msg, AIMessage) or not last_msg.tool_calls:
-            return "correction"
-        if any(call["name"] == "finish_task" for call in last_msg.tool_calls):
-            return "trello_update"
-        return "tools_analyst"
+            return "finish"
+        return "tools"
 
     workflow.add_conditional_edges(
         "coder",
-        route_coder_exit,
+        check_agent_exit,
         {
-            "tools_coder": "tools_coder",
-            "correction": "correction",
-            "trello_update": "trello_update",
+            "tools": "tools_coder",
+            "fail": "correction",
+            "finish": "trello_update",
         },
     )
     workflow.add_conditional_edges(
         "bugfixer",
-        route_coder_exit,
+        check_agent_exit,
         {
-            "tools_coder": "tools_coder",
-            "correction": "correction",
-            "trello_update": "trello_update",
+            "tools": "tools_coder",
+            "fail": "correction",
+            "finish": "trello_update",
         },
     )
     workflow.add_conditional_edges(
         "analyst",
-        route_analyst_exit,
+        check_agent_exit,
         {
-            "tools_analyst": "tools_analyst",
-            "correction": "correction",
-            "trello_update": "trello_update",
+            "tools": "tools_analyst",
+            "fail": "correction",
+            "finish": "trello_update",
         },
     )
     workflow.add_edge("trello_update", END)
 
-    def route_back(state: AgentState) -> str:
-        return state.get("next_step", "CODER").lower()
-
     workflow.add_conditional_edges(
         "correction",
-        route_back,
+        lambda state: state.get("next_step", "coder"),
         {"coder": "coder", "bugfixer": "bugfixer", "analyst": "analyst"},
     )
     workflow.add_conditional_edges(
         "tools_coder",
-        route_back,
+        lambda state: state.get("next_step", "coder"),
         {"coder": "coder", "bugfixer": "bugfixer"},
     )
     workflow.add_conditional_edges(
         "tools_analyst",
-        route_back,
+        lambda state: state.get("next_step", "coder"),
         {"analyst": "analyst"},
     )
 

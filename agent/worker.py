@@ -25,6 +25,7 @@ from agent.local_tools import (
 )
 from agent.mcp_adapter import McpServerClient
 from agent.system_mappings import SYSTEM_DEFINITIONS
+from agent.utils import save_graph_as_mermaid, save_graph_as_png
 from models import AgentConfig
 
 logger = logging.getLogger(__name__)
@@ -103,6 +104,8 @@ async def run_agent_cycle_async(app: Flask, encryption_key: Fernet) -> None:
 
             # --- Graph Execution ---
             app_graph = workflow.compile()
+            save_graph_as_png(app_graph)
+            save_graph_as_mermaid(app_graph)
             logger.info("Executing graph...")
             final_state = await app_graph.ainvoke(
                 {
