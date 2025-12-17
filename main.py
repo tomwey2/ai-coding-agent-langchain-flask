@@ -1,11 +1,14 @@
 import os
 
 from cryptography.fernet import Fernet
+from dotenv import load_dotenv
 
 from agent.worker import run_agent_cycle
 from extensions import db, scheduler
 from models import AgentConfig
 from webapp import create_app
+
+load_dotenv()
 
 # Main entry point
 if __name__ == "__main__":
@@ -17,6 +20,18 @@ if __name__ == "__main__":
     )
     logging.getLogger("httpx").setLevel(logging.WARNING)
     logging.getLogger("httpcore").setLevel(logging.WARNING)
+
+    if not (
+        os.environ.get("MISTRAL_API_KEY")
+        or os.environ.get("OPENAI_API_KEY")
+        or os.environ.get("GOOGLE_API_KEY")
+    ):
+        raise ValueError(
+            "MISTRAL|OPENAI|GOOGLE_API key is not set. Application cannot start."
+        )
+
+    if not os.environ.get("GITHUB_TOKEN"):
+        raise ValueError("GITHUB_TOKEN is not set. Application cannot start.")
 
     key = os.environ.get("ENCRYPTION_KEY")
     if not key:
