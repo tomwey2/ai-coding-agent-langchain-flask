@@ -4,7 +4,7 @@ ENV PYTHONUNBUFFERED=1 \
     UV_COMPILE_BYTECODE=1 \
     UV_LINK_MODE=copy
 
-WORKDIR /app
+WORKDIR /coding-agent
 
 # 1. System-Pakete installieren
 RUN apt-get update && apt-get install -y \
@@ -25,9 +25,9 @@ COPY pyproject.toml uv.lock ./
 RUN uv sync --frozen --no-install-project
 
 # 4. Trello-Server vorbereiten
-RUN mkdir -p /app/servers && \
-    git clone https://github.com/lioarce01/trello-mcp-server.git /app/servers/trello && \
-    cd /app/servers/trello && \
+RUN mkdir -p /coding-agent/servers && \
+    git clone https://github.com/lioarce01/trello-mcp-server.git /coding-agent/servers/trello && \
+    cd /coding-agent/servers/trello && \
     npm install
 
 # 5. Code kopieren
