@@ -9,6 +9,7 @@ from cryptography.fernet import Fernet
 from flask import Flask
 from langchain.chat_models import BaseChatModel
 from langgraph.graph import StateGraph
+from models import AgentConfig
 
 from agent.graph import create_workflow
 from agent.llm_factory import get_llm
@@ -26,7 +27,6 @@ from agent.local_tools import (
 from agent.mcp_adapter import McpServerClient
 from agent.system_mappings import SYSTEM_DEFINITIONS
 from agent.utils import save_graph_as_mermaid, save_graph_as_png
-from models import AgentConfig
 
 logger = logging.getLogger(__name__)
 
@@ -60,7 +60,7 @@ async def run_agent_cycle_async(app: Flask, encryption_key: Fernet) -> None:
         repo_url: str = (
             config.github_repo_url or "https://github.com/tom-test-user/test-repo.git"
         )
-        work_dir = "/app/work_dir"
+        work_dir = "/coding-agent/work_dir"
         ensure_repository_exists(repo_url, work_dir)
 
         async with AsyncExitStack() as stack:

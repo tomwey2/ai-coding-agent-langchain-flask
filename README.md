@@ -160,7 +160,7 @@ docker run \
   -e MISTRAL_API_KEY=$MISTRAL_API_KEY \
   -e GITHUB_TOKEN=$GHCR_AI_CODING_AGENT_TOKEN \
   -p 5000:5000 \
-  -v $(pwd)/instance:/coding-agent/instance \
+  -v $(pwd)/instance:/coding-agent/app/instance \
   --name ai-coding-agent \
   ai-coding-agent
 ```
