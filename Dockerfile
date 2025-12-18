@@ -38,4 +38,4 @@ RUN git config --global user.email "agent@bot.local" && \
     git config --global user.name "AI Coding Agent"
 
 # 7. Startbefehl
-CMD ["uv", "run", "main.py"]
+CMD ["uv", "run", "app/main.py"]
