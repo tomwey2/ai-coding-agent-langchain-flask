@@ -3,10 +3,62 @@ import os
 import re
 import subprocess
 
+import docker
 import requests
+from docker.errors import APIError, NotFound
 from langchain_core.tools import tool
 
+from agent.constants import WORK_DIR
+
 logger = logging.getLogger(__name__)
+
+
+# Initialisiert die Verbindung zur "Fernbedienung" (docker.sock)
+# Das funktioniert automatisch, wenn der Socket gemountet ist.
+try:
+    client = docker.from_env()
+except Exception as e:
+    logger.warning(f"No docker connection! {e}")
+    client = None
+
+# Der Name muss exakt mit 'container_name' in der docker-compose.yml übereinstimmen
+TARGET_CONTAINER = "agent-java-env"
+
+
+@tool
+def run_java_command(command: str):
+    """
+    Führt einen Shell-Befehl im Java-Container aus.
+    Nutze dies für: 'mvn clean install', 'mvn test', 'java -jar ...'.
+    Gib NUR den Befehl als String an.
+    """
+    if not client:
+        return "Error: Docker client not initialized. Is the socket mounted?"
+
+    try:
+        container = client.containers.get(TARGET_CONTAINER)
+
+        if container.status != "running":
+            return f"Error: Container {TARGET_CONTAINER} is not running (Status: {container.status})."
+
+        logger.info(f"Executing in Java-Box: {command}")
+
+        exec_result = container.exec_run(command, workdir=WORK_DIR)
+
+        output = exec_result.output.decode("utf-8")
+        exit_code = exec_result.exit_code
+
+        if exit_code == 0:
+            return f"✅ SUCCESS:\n{output}"
+        else:
+            return f"❌ FAILED (Exit Code {exit_code}):\n{output}"
+
+    except NotFound:
+        return f"Error: Container '{TARGET_CONTAINER}' not found. Please start the docker-compose setup."
+    except APIError as e:
+        return f"Docker API Error: {str(e)}"
+    except Exception as e:
+        return f"System Error: {str(e)}"
 
 
 # --- GIT & FILE TOOLS ---
@@ -36,17 +88,16 @@ def read_file(filepath: str):
     Reads the content of a file.
     """
     try:
-        base_dir = "/app/work_dir"
         # FIX: Führende Slashes entfernen, um absolute Pfade zu verhindern
         clean_path = filepath.lstrip("/")
-        full_path = os.path.join(base_dir, clean_path)
+        full_path = os.path.join(WORK_DIR, clean_path)
 
         # Security
-        if not os.path.abspath(full_path).startswith(base_dir):
-            return f"ERROR: Access denied."
+        if not os.path.abspath(full_path).startswith(WORK_DIR):
+            return "ERROR: Access denied."
 
         if not os.path.exists(full_path):
-            return f"ERROR: File {clean_path} does not exist. (Current dir: {os.listdir(base_dir)})"
+            return f"ERROR: File {clean_path} does not exist. (Current dir: {os.listdir(WORK_DIR)})"
 
         with open(full_path, "r", encoding="utf-8") as f:
             content = f.read()
@@ -63,10 +114,9 @@ def list_files(directory: str = "."):
     Lists files in a directory (recursive).
     """
     try:
-        base_dir = "/app/work_dir"
         clean_dir = directory.lstrip("/")
-        target_dir = os.path.join(base_dir, clean_dir)
-        if not os.path.abspath(target_dir).startswith(base_dir):
+        target_dir = os.path.join(WORK_DIR, clean_dir)
+        if not os.path.abspath(target_dir).startswith(WORK_DIR):
             return "Access denied"
 
         file_list = []
@@ -74,7 +124,7 @@ def list_files(directory: str = "."):
             if ".git" in root:
                 continue
             for file in files:
-                rel_path = os.path.relpath(os.path.join(root, file), base_dir)
+                rel_path = os.path.relpath(os.path.join(root, file), WORK_DIR)
                 file_list.append(rel_path)
         return "\n".join(file_list) if file_list else "No files found."
     except Exception as e:
@@ -87,13 +137,12 @@ def write_to_file(filepath: str, content: str):
     Writes content to a file.
     """
     try:
-        base_dir = "/app/work_dir"
         # FIX: Führende Slashes entfernen
         clean_path = filepath.lstrip("/")
-        full_path = os.path.join(base_dir, clean_path)
+        full_path = os.path.join(WORK_DIR, clean_path)
 
-        if not os.path.abspath(full_path).startswith(base_dir):
-            return f"ERROR: Access denied."
+        if not os.path.abspath(full_path).startswith(WORK_DIR):
+            return "ERROR: Access denied."
 
         os.makedirs(os.path.dirname(full_path), exist_ok=True)
         with open(full_path, "w", encoding="utf-8") as f:
@@ -110,11 +159,10 @@ def git_create_branch(branch_name: str):
     Example: 'feature/login-page' or 'fix/bug-123'.
     """
     try:
-        work_dir = "/app/work_dir"
         # 'checkout -b' erstellt und wechselt in einem Schritt
         subprocess.run(
             ["git", "checkout", "-b", branch_name],
-            cwd=work_dir,
+            cwd=WORK_DIR,
             check=True,
             capture_output=True,
             text=True,
@@ -130,28 +178,27 @@ def git_push_origin():
     Pushes the current branch to the remote repository.
     Sets the upstream automatically.
     """
-    try:
-        work_dir = "/app/work_dir"
-        token = os.environ.get("GITHUB_TOKEN")
-        if not token:
-            return "ERROR: GITHUB_TOKEN missing."
+    token = os.environ.get("GITHUB_TOKEN")
+    if not token:
+        return "ERROR: GITHUB_TOKEN missing."
 
+    try:
         # URL Auth Logic (wie vorher)
         current_url = subprocess.check_output(
-            ["git", "remote", "get-url", "origin"], cwd=work_dir, text=True
+            ["git", "remote", "get-url", "origin"], cwd=WORK_DIR, text=True
         ).strip()
         if "https://" in current_url and "@" not in current_url:
             auth_url = current_url.replace("https://", f"https://{token}@")
             subprocess.run(
                 ["git", "remote", "set-url", "origin", auth_url],
-                cwd=work_dir,
+                cwd=WORK_DIR,
                 check=True,
             )
 
         # WICHTIG: 'git push -u origin HEAD' pusht den aktuellen Branch (egal wie er heißt)
         result = subprocess.run(
             ["git", "push", "-u", "origin", "HEAD"],
-            cwd=work_dir,
+            cwd=WORK_DIR,
             capture_output=True,
             text=True,
             check=True,
@@ -170,17 +217,15 @@ def create_github_pr(title: str, body: str):
     Creates a Pull Request on GitHub for the current branch.
     Target is usually 'main' or 'master'.
     """
+    token = os.environ.get("GITHUB_TOKEN")
+    if not token:
+        return "ERROR: GITHUB_TOKEN missing."
+
     try:
-        token = os.environ.get("GITHUB_TOKEN")
-        if not token:
-            return "ERROR: GITHUB_TOKEN missing."
-
-        work_dir = "/app/work_dir"
-
         # 1. Repo-Infos aus der Remote-URL parsen
         # URL Formate: https://github.com/OWNER/REPO.git oder mit Token
         remote_url = subprocess.check_output(
-            ["git", "remote", "get-url", "origin"], cwd=work_dir, text=True
+            ["git", "remote", "get-url", "origin"], cwd=WORK_DIR, text=True
         ).strip()
 
         # Regex um Owner und Repo zu finden (ignoriert Token und .git am Ende)
@@ -192,7 +237,7 @@ def create_github_pr(title: str, body: str):
 
         # 2. Aktuellen Branch Namen holen
         current_branch = subprocess.check_output(
-            ["git", "rev-parse", "--abbrev-ref", "HEAD"], cwd=work_dir, text=True
+            ["git", "rev-parse", "--abbrev-ref", "HEAD"], cwd=WORK_DIR, text=True
         ).strip()
 
         if current_branch in ["main", "master"]:
@@ -224,35 +269,3 @@ def create_github_pr(title: str, body: str):
 
     except Exception as e:
         return f"ERROR: {str(e)}"
-
-
-# --- HELPER FUNCTIONS (Nicht als @tool markiert, da für internes Setup) ---
-
-
-def ensure_repository_exists(repo_url, work_dir):
-    """
-    Stellt sicher, dass work_dir ein valides Git-Repo ist.
-    """
-    if not os.path.exists(work_dir):
-        os.makedirs(work_dir)
-
-    git_dir = os.path.join(work_dir, ".git")
-    if os.path.isdir(git_dir):
-        logger.info("Repository already exists. Skipping clone.")
-        return
-
-    logger.info(f"Bootstrapping repository from {repo_url}...")
-    try:
-        # Hier ist es wichtig, dass repo_url KEIN Token enthält (fürs Logging sicherer),
-        # oder wir vertrauen darauf, dass der User es sicher handhabt.
-        subprocess.run(
-            ["git", "clone", repo_url, "."],
-            cwd=work_dir,
-            check=True,
-            capture_output=True,
-        )
-        logger.info("Clone successful.")
-    except subprocess.CalledProcessError as e:
-        logger.warning(f"Git Clone failed: {e}")
-        logger.warning("Falling back to 'git init'.")
-        subprocess.run(["git", "init"], cwd=work_dir, check=True)

@@ -1,8 +1,7 @@
 import logging
 
-from langchain_core.messages import AIMessage, HumanMessage, SystemMessage
-
 from agent.state import AgentState
+from langchain_core.messages import AIMessage, HumanMessage, SystemMessage
 
 logger = logging.getLogger(__name__)
 
@@ -30,16 +29,18 @@ Your goal is to solve the task efficiently using the provided TOOLS.
 1. Do NOT chat. Use 'log_thought' to explain your thinking.
 2. ALWAYS create a new branch.
 3. If you write code, you MUST save it ('write_to_file').
-4. You MUST push AND create a Pull Request before finishing.
+4. If you have written the code, try to execute the unit tests ('run_java_command').
+5. Only if you have executed the code successfully, you MUST push AND create a Pull Request before finishing.
 
-CHECKLIST:
+### EXECUTION PLAN:
 1. [ ] Analyze (list_files/read_file).
 2. [ ] Plan (log_thought).
 3. [ ] BRANCH: Call 'git_create_branch'.
 4. [ ] CODE: Call 'write_to_file'.
-5. [ ] SAVE: git_add ['.'] -> git_commit -> git_push_origin.
-6. [ ] PR: Call 'create_github_pr(title="...", body="...")'.
-7. [ ] DONE: finish_task(summary="PR created at URL...")."""
+5. [ ] TEST: Call 'run_java_command' to build and run the tests (mvn clean test). if failed, log the error and goto CODE. if successful, goto SAVE.
+6. [ ] SAVE: git_add ['.'] -> git_commit -> git_push_origin.
+7. [ ] PR: Call 'create_github_pr(title="...", body="...")'.
+8. [ ] DONE: finish_task(summary="PR created at URL...")."""
 
 
 def create_coder_node(llm, tools, repo_url):

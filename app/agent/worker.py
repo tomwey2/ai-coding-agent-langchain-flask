@@ -9,30 +9,27 @@ from cryptography.fernet import Fernet
 from flask import Flask
 from langchain.chat_models import BaseChatModel
 from langgraph.graph import StateGraph
+from mcp.types import LoggingLevel
 from models import AgentConfig
 
+from agent.constants import WORK_DIR
 from agent.graph import create_workflow
 from agent.llm_factory import get_llm
-from agent.local_tools import (
-    create_github_pr,
-    ensure_repository_exists,
-    finish_task,
-    git_create_branch,
-    git_push_origin,
-    list_files,
-    log_thought,
-    read_file,
-    write_to_file,
-)
 from agent.mcp_adapter import McpServerClient
 from agent.system_mappings import SYSTEM_DEFINITIONS
-from agent.utils import save_graph_as_mermaid, save_graph_as_png
+from agent.utils import (
+    ensure_repository_exists,
+    save_graph_as_mermaid,
+    save_graph_as_png,
+)
 
 logger = logging.getLogger(__name__)
 
 
 async def run_agent_cycle_async(app: Flask, encryption_key: Fernet) -> None:
     with app.app_context():
+        logger.info(f"WORK_DIR: {WORK_DIR}")
+
         config = AgentConfig.query.first()
         if not config or not config.is_active:
             logger.info("Agent is not active or not configured. Skipping cycle.")
@@ -60,14 +57,13 @@ async def run_agent_cycle_async(app: Flask, encryption_key: Fernet) -> None:
         repo_url: str = (
             config.github_repo_url or "https://github.com/tom-test-user/test-repo.git"
         )
-        work_dir = "/coding-agent/work_dir"
-        ensure_repository_exists(repo_url, work_dir)
+        ensure_repository_exists(repo_url, WORK_DIR)
 
         async with AsyncExitStack() as stack:
             # --- Start ALL MCP Servers ---
             git_mcp = McpServerClient(
                 command=sys.executable,
-                args=["-m", "mcp_server_git", "--repository", work_dir],
+                args=["-m", "mcp_server_git", "--repository", WORK_DIR],
                 env=os.environ.copy(),
             )
             task_mcp = McpServerClient(
@@ -83,23 +79,16 @@ async def run_agent_cycle_async(app: Flask, encryption_key: Fernet) -> None:
                 f"Loaded {len(git_tools)} Git tools and {len(task_tools)} Task tools."
             )
 
-            # --- Tool Sets Definition ---
-            read_tools = [list_files, read_file]
-            write_tools = [
-                git_create_branch,
-                write_to_file,
-                git_push_origin,
-                create_github_pr,
-            ]
-            base_tools = [log_thought, finish_task]
-            analyst_tools = read_tools + base_tools
-            coder_tools = git_tools + read_tools + write_tools + base_tools
-
             # --- LLM and Graph Creation ---
             llm_large: BaseChatModel = get_llm(sys_config, True)
             llm_small: BaseChatModel = get_llm(sys_config, True)
             workflow: StateGraph = create_workflow(
-                llm_large, llm_small, coder_tools, analyst_tools, repo_url, sys_config
+                llm_large,
+                llm_small,
+                git_tools,
+                task_tools,
+                repo_url,
+                sys_config,
             )
 
             # --- Graph Execution ---

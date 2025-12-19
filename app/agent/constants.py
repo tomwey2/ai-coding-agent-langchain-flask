@@ -6,3 +6,5 @@ TASK_STATE_OPEN = "Open"
 TASK_STATE_IN_REVIEW = "In Review"
 TASK_STATE_IN_PROGRESS = "In Progress"
 TASK_STATE_DONE = "Done"
+
+WORK_DIR = "/coding-agent/work_dir"
