@@ -9,10 +9,8 @@ from cryptography.fernet import Fernet
 from flask import Flask
 from langchain.chat_models import BaseChatModel
 from langgraph.graph import StateGraph
-from mcp.types import LoggingLevel
 from models import AgentConfig
 
-from agent.constants import WORK_DIR
 from agent.graph import create_workflow
 from agent.llm_factory import get_llm
 from agent.mcp_adapter import McpServerClient
@@ -28,7 +26,8 @@ logger = logging.getLogger(__name__)
 
 async def run_agent_cycle_async(app: Flask, encryption_key: Fernet) -> None:
     with app.app_context():
-        logger.info(f"WORK_DIR: {WORK_DIR}")
+        WORKSPACE = os.environ.get("WORKSPACE", "")
+        logger.info(f"WORK_DIR: {WORKSPACE}")
 
         config = AgentConfig.query.first()
         if not config or not config.is_active:
@@ -57,13 +56,13 @@ async def run_agent_cycle_async(app: Flask, encryption_key: Fernet) -> None:
         repo_url: str = (
             config.github_repo_url or "https://github.com/tom-test-user/test-repo.git"
         )
-        ensure_repository_exists(repo_url, WORK_DIR)
+        ensure_repository_exists(repo_url, WORKSPACE)
 
         async with AsyncExitStack() as stack:
             # --- Start ALL MCP Servers ---
             git_mcp = McpServerClient(
                 command=sys.executable,
-                args=["-m", "mcp_server_git", "--repository", WORK_DIR],
+                args=["-m", "mcp_server_git", "--repository", WORKSPACE],
                 env=os.environ.copy(),
             )
             task_mcp = McpServerClient(

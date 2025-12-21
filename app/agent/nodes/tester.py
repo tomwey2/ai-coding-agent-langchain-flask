@@ -1,6 +1,7 @@
 import logging
 from typing import Literal
 
+from agent.local_tools import report_test_result
 from agent.state import AgentState
 from langchain_core.messages import SystemMessage
 from pydantic import BaseModel, Field
@@ -14,7 +15,7 @@ TOOLS AVAILABLE:
 - run_java_command: Execute 'mvn clean test'.
 - git_add, git_commit, git_push_origin: Save work.
 - create_pull_request: Create a pull request. (MANDATORY!!)
-- TesterResult: Call this tool FINALLY to report if the task is 'pass' or 'fail'.
+- report_test_result: Call this tool FINALLY to report if the task is 'pass' or 'fail'.
 
 WORKFLOW:
 1. EXECUTE: Run 'mvn clean test'.
@@ -27,6 +28,7 @@ WORKFLOW:
 
 RULES:
 - Do not guess the result. You MUST run the command first.
+- Do NOT run git commands before running tests. ONLY run git commands if tests pass.
 - If tests fail, DO NOT create a PR. Report fail immediately.
 """
 
@@ -44,8 +46,9 @@ class TesterResult(BaseModel):
     )
 
 
-def create_tester_node(llm, tools):
-    llm_with_tools = llm.bind_tools(tools + [TesterResult])
+def create_tester_node(llm, tools, repo_url):
+    sys_msg = f"{TESTER_SYSTEM_PROMPT}\nRepo: {repo_url}\n\nREMINDER: Run tests first!"
+    llm_with_tools = llm.bind_tools(tools + [report_test_result])
 
     async def tester_node(state: AgentState):
         messages = state["messages"]
@@ -55,7 +58,7 @@ def create_tester_node(llm, tools):
             not isinstance(messages[0], SystemMessage)
             or "QA Software Tester" not in messages[0].content
         ):
-            messages = [SystemMessage(content=TESTER_SYSTEM_PROMPT)] + messages
+            messages = [SystemMessage(content=sys_msg)] + messages
 
         # LLM Aufruf
         response = await llm_with_tools.ainvoke(messages)

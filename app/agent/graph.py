@@ -7,8 +7,11 @@ from langgraph.prebuilt import ToolNode
 from agent.local_tools import (
     create_github_pr,
     finish_task,
+    git_add,
+    git_commit,
     git_create_branch,
     git_push_origin,
+    git_status,
     list_files,
     log_thought,
     read_file,
@@ -29,7 +32,7 @@ from agent.nodes.trello_update_node import create_trello_update_node
 from agent.state import AgentState
 
 
-def router_tester(state):
+def router_tester_old(state):
     """
     Entscheidet nach dem Tester-LLM:
     - Wurde TesterResult aufgerufen? -> Auswerten (pass/fail).
@@ -56,16 +59,56 @@ def router_tester(state):
     return "tools"
 
 
+def router_tester(state):
+    last_msg = state["messages"][-1]
+
+    # Wenn der Tester Tools nutzen will (egal ob git, java oder report_result)
+    # -> Ab zum ToolNode!
+    if hasattr(last_msg, "tool_calls") and last_msg.tool_calls:
+        return "tools_tester"
+
+    return "tools_tester"  # Oder Error handling
+
+
+def route_after_tools_tester(state: AgentState):
+    messages = state["messages"]
+
+    # Sicherstellen, dass wir genug Nachrichten haben
+    if len(messages) < 2:
+        return "tester"
+
+    # Wir schauen auf die Nachricht VOR dem Tool-Output (die AIMessage des Testers)
+    last_ai_msg = messages[-2]
+
+    if isinstance(last_ai_msg, AIMessage) and last_ai_msg.tool_calls:
+        # Wir iterieren durch ALLE Tool Calls, falls der Agent mehrere gemacht hat
+        for tool_call in last_ai_msg.tool_calls:
+            if tool_call["name"] == "report_test_result":
+                args = tool_call["args"]
+                result = args.get("result")
+
+                if result == "pass":
+                    return "pass"  # Erfolg -> Ende
+                else:
+                    # Fehlgeschlagen -> Zurück zum Bearbeiter
+                    previous_agent = state.get("next_step", "coder")
+                    return f"{previous_agent} failed"
+
+    # Wenn kein 'report_test_result' dabei war (z.B. nur 'run_java_command' oder 'git_add')
+    # dann geht es zurück zum Tester (Loop), damit er weitermachen kann.
+    return "tester"
+
+
 def check_agent_exit(state: AgentState) -> str:
     """
     Prüft nach Coder/Bugfixer/Analyst:
     - Hat das LLM ein Tool gewählt? -> tools
-    - Hat es Text gelabert? -> fail (Korrektur)
+    - Hat es Text gelabert? -> no tool (Korrektur)
     """
     last_msg = state["messages"][-1]
 
     if not isinstance(last_msg, AIMessage) or not last_msg.tool_calls:
-        return "fail"
+        return "no tool"
 
     # Wir führen ALLE Tools aus, auch finish_task
     return "tools"
@@ -125,16 +168,19 @@ def create_workflow(
     write_tools = [write_to_file]
 
     # Git Tools lokal definieren
-    git_local_tools = [
-        git_create_branch,
+    git_local_tools_coder = [git_create_branch]
+    git_local_tools_tester = [
+        git_add,
+        git_status,
+        git_commit,
         git_push_origin,
         create_github_pr,
     ]
 
     analyst_tools = read_tools + base_tools
-    coder_tools = read_tools + write_tools + base_tools
+    coder_tools = git_local_tools_coder + read_tools + write_tools + base_tools
     # Tester braucht Java + Git
-    tester_tools = git_tools + git_local_tools + [run_java_command]
+    tester_tools = git_local_tools_tester + [run_java_command]
 
     # --- Graph Nodes ---
     workflow = StateGraph(AgentState)
@@ -150,7 +196,7 @@ def create_workflow(
         "analyst", create_analyst_node(llm_large, analyst_tools, repo_url)
     )
 
-    workflow.add_node("tester", create_tester_node(llm_large, tester_tools))
+    workflow.add_node("tester", create_tester_node(llm_large, tester_tools, repo_url))
 
     # Tool Nodes
     workflow.add_node("tools_coder", ToolNode(coder_tools))
@@ -184,7 +230,7 @@ def create_workflow(
         check_agent_exit,
         {
             "tools": "tools_coder",
-            "fail": "correction",
+            "no tool": "correction",
         },
     )
 
@@ -194,7 +240,7 @@ def create_workflow(
         check_agent_exit,
         {
             "tools": "tools_coder",
-            "fail": "correction",
+            "no tool": "correction",
         },
     )
 
@@ -204,7 +250,7 @@ def create_workflow(
         check_agent_exit,
         {
             "tools": "tools_analyst",
-            "fail": "correction",
+            "no tool": "correction",
         },
     )
 
@@ -231,19 +277,34 @@ def create_workflow(
     )
 
     # 7. Tester Logik
+    # workflow.add_conditional_edges(
+    #    "tester",
+    #    router_tester,
+    #    {
+    #        "tools": "tools_tester",  # git/java tools ausführen
+    #        "pass": "trello_update",  # Testergebnis grün
+    #        "coder failed": "coder",  # Zurück zur Arbeit
+    #        "bugfixer failed": "bugfixer",  # Zurück zur Arbeit
+    #    },
+    # )
+    # 7.1. Tester -> Tools
     workflow.add_conditional_edges(
         "tester",
-        router_tester,
-        {
-            "tools": "tools_tester",  # git/java tools ausführen
-            "pass": "trello_update",  # Testergebnis grün
-            "coder failed": "coder",  # Zurück zur Arbeit
-            "bugfixer failed": "bugfixer",  # Zurück zur Arbeit
-        },
+        router_tester,  # Schickt alles zu tools_tester
+        {"tools_tester": "tools_tester"},
     )
 
-    # Tester Loop zurück
-    workflow.add_edge("tools_tester", "tester")
+    # 7.2. Tools -> Entscheidung
+    workflow.add_conditional_edges(
+        "tools_tester",
+        route_after_tools_tester,
+        {
+            "tester": "tester",  # Loop (für git, mvn)
+            "pass": "trello_update",  # Erfolg
+            "coder failed": "coder",  # Tests failed back to coder or bugfixer
+            "bugfixer failed": "bugfixer",
+        },
+    )
 
     # 8. Correction & Ende
     workflow.add_conditional_edges(
