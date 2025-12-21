@@ -1,9 +1,8 @@
 import os
 
+from agent.worker import run_agent_cycle
 from cryptography.fernet import Fernet
 from dotenv import load_dotenv
-
-from agent.worker import run_agent_cycle
 from extensions import db, scheduler
 from models import AgentConfig
 from webapp import create_app
@@ -37,6 +36,9 @@ if __name__ == "__main__":
     if not key:
         raise ValueError("ENCRYPTION_KEY is not set. Application cannot start.")
     encryption_key = Fernet(key.encode())
+
+    if not os.environ.get("WORKSPACE"):
+        raise ValueError("WORKSPACE is not set. Application cannot start.")
 
     app = create_app(encryption_key)
 

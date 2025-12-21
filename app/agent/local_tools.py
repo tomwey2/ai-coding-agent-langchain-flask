@@ -8,8 +8,6 @@ import requests
 from docker.errors import APIError, NotFound
 from langchain_core.tools import tool
 
-from agent.constants import WORK_DIR
-
 logger = logging.getLogger(__name__)
 
 
@@ -21,8 +19,16 @@ except Exception as e:
     logger.warning(f"No docker connection! {e}")
     client = None
 
-# Der Name muss exakt mit 'container_name' in der docker-compose.yml übereinstimmen
-TARGET_CONTAINER = "agent-java-env"
+
+# Hilfsfunktion, um Redundanz zu vermeiden
+def get_workspace():
+    # Holt den Pfad aus der Env-Var, die wir im Docker-Compose gesetzt haben
+    return os.environ.get("WORKSPACE", "/coding-agent-workspace")
+
+
+def get_workbench():
+    # Holt den Pfad aus der Env-Var, die wir im Docker-Compose gesetzt haben
+    return os.environ.get("WORKBENCH", "")
 
 
 @tool
@@ -42,29 +48,32 @@ def run_java_command(command: str):
     Nutze dies für: 'mvn clean install', 'mvn test', 'java -jar ...'.
     Gib NUR den Befehl als String an.
     """
+    WORKSPACE = get_workspace()
+    WORKBENCH = get_workbench()
     if not client:
         return "Error: Docker client not initialized. Is the socket mounted?"
 
     try:
-        container = client.containers.get(TARGET_CONTAINER)
+        container = client.containers.get(WORKBENCH)
 
         if container.status != "running":
-            return f"Error: Container {TARGET_CONTAINER} is not running (Status: {container.status})."
+            return f"Error: Container {WORKBENCH} is not running (Status: {container.status})."
 
         logger.info(f"Executing in Java-Box: {command}")
 
-        exec_result = container.exec_run(command, workdir=WORK_DIR)
+        exec_result = container.exec_run(command, workdir=WORKSPACE)
 
         output = exec_result.output.decode("utf-8")
         exit_code = exec_result.exit_code
 
+        logger.debug(f"--- COMMAND OUTPUT ({command}) ---\n{output}\n---")
         if exit_code == 0:
             return f"✅ SUCCESS:\n{output}"
         else:
             return f"❌ FAILED (Exit Code {exit_code}):\n{output}"
 
     except NotFound:
-        return f"Error: Container '{TARGET_CONTAINER}' not found. Please start the docker-compose setup."
+        return f"Error: Container '{WORKBENCH}' not found. Please start the docker-compose setup."
     except APIError as e:
         return f"Docker API Error: {str(e)}"
     except Exception as e:
@@ -97,17 +106,18 @@ def read_file(filepath: str):
     """
     Reads the content of a file.
     """
+    WORKSPACE = get_workspace()
     try:
         # FIX: Führende Slashes entfernen, um absolute Pfade zu verhindern
         clean_path = filepath.lstrip("/")
-        full_path = os.path.join(WORK_DIR, clean_path)
+        full_path = os.path.join(WORKSPACE, clean_path)
 
         # Security
-        if not os.path.abspath(full_path).startswith(WORK_DIR):
+        if not os.path.abspath(full_path).startswith(WORKSPACE):
             return "ERROR: Access denied."
 
         if not os.path.exists(full_path):
-            return f"ERROR: File {clean_path} does not exist. (Current dir: {os.listdir(WORK_DIR)})"
+            return f"ERROR: File {clean_path} does not exist. (Current dir: {os.listdir(WORKSPACE)})"
 
         with open(full_path, "r", encoding="utf-8") as f:
             content = f.read()
@@ -123,10 +133,11 @@ def list_files(directory: str = "."):
     """
     Lists files in a directory (recursive).
     """
+    WORKSPACE = get_workspace()
     try:
         clean_dir = directory.lstrip("/")
-        target_dir = os.path.join(WORK_DIR, clean_dir)
-        if not os.path.abspath(target_dir).startswith(WORK_DIR):
+        target_dir = os.path.join(WORKSPACE, clean_dir)
+        if not os.path.abspath(target_dir).startswith(WORKSPACE):
             return "Access denied"
 
         file_list = []
@@ -134,7 +145,7 @@ def list_files(directory: str = "."):
             if ".git" in root:
                 continue
             for file in files:
-                rel_path = os.path.relpath(os.path.join(root, file), WORK_DIR)
+                rel_path = os.path.relpath(os.path.join(root, file), WORKSPACE)
                 file_list.append(rel_path)
         return "\n".join(file_list) if file_list else "No files found."
     except Exception as e:
@@ -146,12 +157,13 @@ def write_to_file(filepath: str, content: str):
     """
     Writes content to a file.
     """
+    WORKSPACE = get_workspace()
     try:
         # FIX: Führende Slashes entfernen
         clean_path = filepath.lstrip("/")
-        full_path = os.path.join(WORK_DIR, clean_path)
+        full_path = os.path.join(WORKSPACE, clean_path)
 
-        if not os.path.abspath(full_path).startswith(WORK_DIR):
+        if not os.path.abspath(full_path).startswith(WORKSPACE):
             return "ERROR: Access denied."
 
         os.makedirs(os.path.dirname(full_path), exist_ok=True)
@@ -168,11 +180,12 @@ def git_create_branch(branch_name: str):
     Creates a new git branch and switches to it immediately.
     Example: 'feature/login-page' or 'fix/bug-123'.
     """
+    WORKSPACE = get_workspace()
     try:
         # 'checkout -b' erstellt und wechselt in einem Schritt
         subprocess.run(
             ["git", "checkout", "-b", branch_name],
-            cwd=WORK_DIR,
+            cwd=WORKSPACE,
             check=True,
             capture_output=True,
             text=True,
@@ -188,6 +201,7 @@ def git_push_origin():
     Pushes the current branch to the remote repository.
     Sets the upstream automatically.
     """
+    WORKSPACE = get_workspace()
     token = os.environ.get("GITHUB_TOKEN")
     if not token:
         return "ERROR: GITHUB_TOKEN missing."
@@ -195,20 +209,20 @@ def git_push_origin():
     try:
         # URL Auth Logic (wie vorher)
         current_url = subprocess.check_output(
-            ["git", "remote", "get-url", "origin"], cwd=WORK_DIR, text=True
+            ["git", "remote", "get-url", "origin"], cwd=WORKSPACE, text=True
         ).strip()
         if "https://" in current_url and "@" not in current_url:
             auth_url = current_url.replace("https://", f"https://{token}@")
             subprocess.run(
                 ["git", "remote", "set-url", "origin", auth_url],
-                cwd=WORK_DIR,
+                cwd=WORKSPACE,
                 check=True,
             )
 
         # WICHTIG: 'git push -u origin HEAD' pusht den aktuellen Branch (egal wie er heißt)
         result = subprocess.run(
             ["git", "push", "-u", "origin", "HEAD"],
-            cwd=WORK_DIR,
+            cwd=WORKSPACE,
             capture_output=True,
             text=True,
             check=True,
@@ -227,6 +241,7 @@ def create_github_pr(title: str, body: str):
     Creates a Pull Request on GitHub for the current branch.
     Target is usually 'main' or 'master'.
     """
+    WORKSPACE = get_workspace()
     token = os.environ.get("GITHUB_TOKEN")
     if not token:
         return "ERROR: GITHUB_TOKEN missing."
@@ -235,7 +250,7 @@ def create_github_pr(title: str, body: str):
         # 1. Repo-Infos aus der Remote-URL parsen
         # URL Formate: https://github.com/OWNER/REPO.git oder mit Token
         remote_url = subprocess.check_output(
-            ["git", "remote", "get-url", "origin"], cwd=WORK_DIR, text=True
+            ["git", "remote", "get-url", "origin"], cwd=WORKSPACE, text=True
         ).strip()
 
         # Regex um Owner und Repo zu finden (ignoriert Token und .git am Ende)
@@ -247,7 +262,7 @@ def create_github_pr(title: str, body: str):
 
         # 2. Aktuellen Branch Namen holen
         current_branch = subprocess.check_output(
-            ["git", "rev-parse", "--abbrev-ref", "HEAD"], cwd=WORK_DIR, text=True
+            ["git", "rev-parse", "--abbrev-ref", "HEAD"], cwd=WORKSPACE, text=True
         ).strip()
 
         if current_branch in ["main", "master"]:
@@ -279,3 +294,58 @@ def create_github_pr(title: str, body: str):
 
     except Exception as e:
         return f"ERROR: {str(e)}"
+
+
+@tool
+def git_add(files: list):  # repo_path ignorieren wir oft besser zugunsten der ENV
+    """Adds files to staging area."""
+    WORKSPACE = get_workspace()
+    try:
+        subprocess.run(
+            ["git", "add"] + files,
+            cwd=WORKSPACE,
+            check=True,
+            capture_output=True,
+            text=True,
+        )
+        return f"Successfully added {files}"
+    except subprocess.CalledProcessError as e:
+        return f"Error adding files: {e.stderr}"
+
+
+@tool
+def git_commit(message: str):
+    """Commits staged changes."""
+    WORKSPACE = get_workspace()
+    try:
+        # Git Identität muss im Container gesetzt sein, sonst meckert Git
+        # (Alternativ in Dockerfile setzen)
+        subprocess.run(["git", "config", "user.email", "agent@bot.com"], cwd=WORKSPACE)
+        subprocess.run(["git", "config", "user.name", "Coding Agent"], cwd=WORKSPACE)
+
+        subprocess.run(
+            ["git", "commit", "-m", message],
+            cwd=WORKSPACE,
+            check=True,
+            capture_output=True,
+            text=True,
+        )
+        return "Commit successful."
+    except subprocess.CalledProcessError as e:
+        return f"Error committing: {e.stderr}"
+
+
+@tool
+def git_status():
+    """Checks git status."""
+    WORKSPACE = get_workspace()
+    try:
+        result = subprocess.run(
+            ["git", "status"],
+            cwd=WORKSPACE,
+            capture_output=True,
+            text=True,
+        )
+        return result.stdout
+    except Exception as e:
+        return str(e)
