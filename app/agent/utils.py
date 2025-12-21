@@ -1,8 +1,9 @@
 import logging
 import os
 import re
-import subprocess
+import shutil
 
+from git import Repo
 from langchain_core.messages import AIMessage
 
 logger = logging.getLogger(__name__)
@@ -81,26 +82,18 @@ def ensure_repository_exists(repo_url, work_dir):
     """
     Stellt sicher, dass work_dir ein valides Git-Repo ist.
     """
-    if not os.path.exists(work_dir):
-        os.makedirs(work_dir)
+    # 1. Inhalt löschen, aber NICHT den Ordner selbst (wegen Mount)
+    for filename in os.listdir(work_dir):
+        file_path = os.path.join(work_dir, filename)
+        try:
+            if os.path.isfile(file_path) or os.path.islink(file_path):
+                os.unlink(file_path)
+            elif os.path.isdir(file_path):
+                shutil.rmtree(file_path)
+        except Exception as e:
+            print(f"Failed to delete {file_path}. Reason: {e}")
 
-    git_dir = os.path.join(work_dir, ".git")
-    if os.path.isdir(git_dir):
-        logger.info("Repository already exists. Skipping clone.")
-        return
-
-    logger.info(f"Bootstrapping repository from {repo_url}...")
-    try:
-        # Hier ist es wichtig, dass repo_url KEIN Token enthält (fürs Logging sicherer),
-        # oder wir vertrauen darauf, dass der User es sicher handhabt.
-        subprocess.run(
-            ["git", "clone", repo_url, "."],
-            cwd=work_dir,
-            check=True,
-            capture_output=True,
-        )
-        logger.info("Clone successful.")
-    except subprocess.CalledProcessError as e:
-        logger.warning(f"Git Clone failed: {e}")
-        logger.warning("Falling back to 'git init'.")
-        subprocess.run(["git", "init"], cwd=work_dir, check=True)
+    # 2. In das nun leere Verzeichnis klonen
+    # Der Punkt '.' ist wichtig, damit git nicht einen Unterordner erstellt
+    logger.info(f"Cloning repository {repo_url} into {work_dir}")
+    Repo.clone_from(repo_url, work_dir)
