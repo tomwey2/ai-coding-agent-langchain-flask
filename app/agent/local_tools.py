@@ -26,6 +26,16 @@ TARGET_CONTAINER = "agent-java-env"
 
 
 @tool
+def report_test_result(result: str, summary: str):
+    """
+    Reports the final outcome of the testing phase.
+    result: 'pass' if everything is green (PR created), 'fail' if fix is needed.
+    summary: Brief explanation.
+    """
+    return f"Test Process Completed. Result: {result}. Summary: {summary}"
+
+
+@tool
 def run_java_command(command: str):
     """
     Führt einen Shell-Befehl im Java-Container aus.
@@ -69,7 +79,7 @@ def log_thought(thought: str):
     Use this tool to 'think out loud' or plan your next step without breaking the workflow.
     """
     # Wir loggen es nur, damit wir es sehen. Für den Agenten ist es ein erfolgreicher Schritt.
-    logger.info(f"🤔 AGENT THOUGHT: {thought}")
+    logger.debug(f"🤔 AGENT THOUGHT: {thought}")
     return "Thought recorded. Proceed with the next tool."
 
 

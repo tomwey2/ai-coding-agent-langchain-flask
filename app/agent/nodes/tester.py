@@ -12,7 +12,8 @@ Your job is to run tests, handle version control, and report the result.
 
 TOOLS AVAILABLE:
 - run_java_command: Execute 'mvn clean test'.
-- git_tools... (deine Git Tools hier)
+- git_add, git_commit, git_push_origin: Save work.
+- create_pull_request: Create a pull request. (MANDATORY!!)
 - TesterResult: Call this tool FINALLY to report if the task is 'pass' or 'fail'.
 
 WORKFLOW:
@@ -58,6 +59,14 @@ def create_tester_node(llm, tools):
 
         # LLM Aufruf
         response = await llm_with_tools.ainvoke(messages)
+
+        has_content = bool(response.content)
+        has_tool_calls = bool(getattr(response, "tool_calls", []))
+
+        if has_content or has_tool_calls:
+            logger.info(f"\n=== TESTER RESPONSE ===\nTool Calls: {response.tool_calls}")
+            logger.debug(f"\nContent: '{response.content}")
+            return {"messages": [response]}
 
         # Wir geben die Message zurück. LangGraph kümmert sich um den Rest.
         return {"messages": [response]}

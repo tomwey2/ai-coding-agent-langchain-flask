@@ -14,8 +14,6 @@ Your goal is to solve the task efficiently using the provided TOOLS.
 - log_thought: PLAN before you act!
 - git_create_branch: Create a feature branch.
 - write_to_file: Create/Edit code.
-- git_add, git_commit, git_push_origin: Save work.
-- create_pull_request: Create a pull request. (MANDATORY!!)
 - finish_task: Mark as done.
 
 ### CODING STANDARDS (Critical):
@@ -29,18 +27,24 @@ Your goal is to solve the task efficiently using the provided TOOLS.
 1. Do NOT chat. Use 'log_thought' to explain your thinking.
 2. ALWAYS create a new branch.
 3. If you write code, you MUST save it ('write_to_file').
-4. If you have written the code, try to execute the unit tests ('run_java_command').
-5. Only if you have executed the code successfully, you MUST push AND create a Pull Request before finishing.
 
 ### EXECUTION PLAN:
 1. [ ] Analyze (list_files/read_file).
 2. [ ] Plan (log_thought).
 3. [ ] BRANCH: Call 'git_create_branch'.
 4. [ ] CODE: Call 'write_to_file'.
-5. [ ] TEST: Call 'run_java_command' to build and run the tests (mvn clean test). if failed, log the error and goto CODE. if successful, goto SAVE.
-6. [ ] SAVE: git_add ['.'] -> git_commit -> git_push_origin.
-7. [ ] PR: Call 'create_github_pr(title="...", body="...")'.
-8. [ ] DONE: finish_task(summary="PR created at URL...")."""
+5. [ ] DONE: finish_task(summary="a short summary (max 2 sentences)")
+"""
+
+
+def safe_truncate(value, length=100):
+    # 1. Alles erst in String umwandeln (verhindert Fehler bei int/bool/list)
+    s_val = str(value)
+    # 2. Kürzen und "..." anhängen, wenn zu lang
+    if len(s_val) > length:
+        return s_val[:length] + "..."
+    # 3. Zeilenumbrüche für das Log entfernen (optional, macht es lesbarer)
+    return s_val.replace("\n", "\\n")
 
 
 def create_coder_node(llm, tools, repo_url):
@@ -56,12 +60,27 @@ def create_coder_node(llm, tools, repo_url):
                 response = await chain.ainvoke(current_messages)
 
                 has_content = bool(response.content)
+                tool_calls = getattr(response, "tool_calls", []) or []
                 has_tool_calls = bool(getattr(response, "tool_calls", []))
 
                 if has_content or has_tool_calls:
-                    logger.info(
-                        f"\n=== CODER RESPONSE (Attempt {attempt + 1}) ===\nContent: '{response.content}'\nTool Calls: {response.tool_calls}\n============================"
-                    )
+                    logger.info(f"\n=== CODER RESPONSE (Attempt {attempt + 1}) ===")
+
+                    if has_tool_calls:
+                        for tc in tool_calls:
+                            name = tc.get("name", "unknown")
+                            args = tc.get("args", {})
+
+                            logger.info(f"Tool Call: {name}")
+
+                            # Hier war dein Fehler: Wir nutzen jetzt safe_truncate
+                            for k, v in args.items():
+                                logger.info(f" └─ {k}: {safe_truncate(v, 100)}")
+
+                    if has_content:
+                        # Auch den Content kürzen, falls er riesig ist
+                        logger.info(f"Content: {safe_truncate(response.content, 100)}")
+
                     return {"messages": [response]}
 
                 logger.warning(
