@@ -63,9 +63,9 @@ The following diagram illustrates the high-level architecture of the system, hig
 The core system consists of the following key components:
 
 1. **AI Coding Agent (Docker Container):** This container acts as the "brain" of the operation. It orchestrates the entire workflow and manages the decision-making process.
-  - Web Application (Flask): Provides a user interface for configuring the agent. It uses SQLAlchemy for persistent data management (e.g., storing configuration states and history).
-  - APScheduler: A background scheduler that triggers the agent's workflow periodically and handles asynchronous task execution, ensuring continuous operation without manual intervention.
-  - LangGraph Workflow with specialist agents: A state machine that routes the development process from the initial task to the final Pull Request. It manages the state and transitions between different agents. A team of distinct AI agents (Coder, Bugfixer, Analyst, Tester), each equipped with specific tools to perform granular tasks such as code analysis, writing syntax, or running tests.
+    - Web Application (Flask): Provides a user interface for configuring the agent. It uses SQLAlchemy for persistent data management (e.g., storing configuration states and history).
+    - APScheduler: A background scheduler that triggers the agent's workflow periodically and handles asynchronous task execution, ensuring continuous operation without manual intervention.
+    - LangGraph Workflow with specialist agents: A state machine that routes the development process from the initial task to the final Pull Request. It manages the state and transitions between different agents. A team of distinct AI agents (Coder, Bugfixer, Analyst, Tester), each equipped with specific tools to perform granular tasks such as code analysis, writing syntax, or running tests.
 
 2. **Workbench (Docker Container):** This container serves as the "sandbox" or execution environment. It contains all necessary development tools (e.g., Java JDK, Maven) required to build and test the target application. By isolating the build environment, the system ensures that arbitrary code execution does not affect the core agent logic.
 
