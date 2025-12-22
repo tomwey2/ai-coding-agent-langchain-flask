@@ -1,9 +1,9 @@
-# Autonomous Containerized AI Coding Agent - ACAICA
+# Autonomous Containerized AI Coding Agent - acAIca
 
 ![Status](https://img.shields.io/badge/Status-POC-yellow)
 ![Tech](https://img.shields.io/badge/Built%20With-LangGraph%20%7C%20Mistral%20%7C%20Docker%20%7C%20MCP-blue)
 
-This project demonstrates a POC for an autonomous, containerized AI coding agent that lives in your Docker environment. 
+This project demonstrates a POC for an autonomous, containerized AI coding agent (acAIca) that lives in your Docker environment. 
 It operates completely unsupervised to:
 
 - **Connect** to your task management system (Trello is currently supported).
@@ -20,13 +20,13 @@ security, and more. Every developer is a vital link in the value chain.
 
 But what happens when resources become a bottleneck? **The solution? Simply augment your team with artificial developers working autonomously—seamlessly integrated via Jira tickets and pull requests.**
 
-<img src="./process.png" title="AI Coding Agent Process" alt="AI Coding Agent Process">
+![AI Coding Agent Process](./process.png)
 
 ## Key Features
 
 As a **Proof of Concept (POC)**, the system demonstrates the following advanced capabilities:
 
-- **Multi-Agent Architecture:** Uses **LangGraph** to route tasks to specialized sub-agents (`Coder`, `Bugfixer`, `Analyst`).
+- **Multi-Agent Architecture:** Uses **LangGraph** to route tasks to specialized sub-agents (`Coder`, `Bugfixer`, `Analyst`, `Tester`).
 - **Autonomous Git Operations:** Manages the full Git lifecycle—cloning, branching, committing, pushing, and pull requests—using the **Model Context Protocol (MCP)**.
 - **Task Management Integration:** Connects to external task/issue management systems (e.g. Trello, JIRA) to retrieve assignments and report status updates automatically.
 - **Resilient AI Logic:** Features advanced **self-healing mechanisms** with retry loops and iterative prompting to prevent stalling and minimize hallucinations.
@@ -50,7 +50,7 @@ Key milestones for professionalization include:
 ---
 
 ## System Architecture
-The Autonomous Containerized AI Coding Agent is designed as a modular, dockerized system that automates the software development lifecycle. The architecture separates the "reasoning engine" (the AI Agent) from the "execution environment" (the Workbench) to ensure security and stability.
+The **acAIca** is designed as a modular, dockerized system that automates the software development lifecycle. The architecture separates the "reasoning engine" (the AI Agent) from the "execution environment" (the Workbench) to ensure security and stability.
 The system interacts with several external services to fulfill the end-to-end workflow:
 - Task Management System (e.g., Trello): Serves as the source of truth for incoming coding tasks. The agent fetches tasks from the backlog and updates their status upon completion.
 - LLM Provider (e.g., Mistral, OpenAI): The inference engine used by the agents to generate code, reason about bugs, and analyze requirements.
@@ -96,10 +96,10 @@ The system is built upon a stateful, multi-agent architecture powered by LangGra
 
 * **Core:** Python 3.11+
 * **Orchestration:** [LangGraph](https://langchain-ai.github.io/langgraph/)
-* **AI Model:** Mistral Large (`mistral-large-latest`) via LangChain
+* **AI Model:** ChatMistralAI, ChatOpenAI, ChatGoogleGenerativeAI via LangChain
 * **Protocol:** [Model Context Protocol (MCP)](https://modelcontextprotocol.io/) (Git Server)
-* **Infrastructure:** Docker & UV (Package Manager)
-* **Backend:** Flask, SQLAlchemy, APScheduler
+* **Infrastructure:** Docker & [UV (Package Manager)](https://docs.astral.sh/uv/)
+* **Backend:** [Flask](https://en.wikipedia.org/wiki/Flask_(web_framework)), [SQLAlchemy](https://en.wikipedia.org/wiki/SQLAlchemy), APScheduler
 
 ---
 
@@ -144,12 +144,12 @@ docker compose down
 #### 5. Configure the Coding Agent
 Open the agent dashboard in browser, e.g. http://localhost:5000, and fill in the required fields. Press "Save Configuration". The data are stored in a SQLite database encrypted using the Fernet key.
 
-<img src="./dashboard.png" title="Dashboard" alt="Dashboard">
+![Agent Dashboard](./dashboard.png)
 
 #### 6. Prepare your Trello Board
 Create new Cards at your Trello board in the list "Backlog" and move one into the list "Sprint Backlog". Here you can see an example:
 
-<img src="./trello-board.png" title="Trello Board" alt="Trello Board">
+![Trello Board](./trello-board.png)
 
 #### 7. Agent runs automatically
 The agent runs automatically when a new card is created in the "Sprint Backlog" list. It will generate or change the code based on the card description and create a pull request to your GitHub repository.
@@ -164,6 +164,9 @@ If the coding agent made a mistake, please let me know, e.g. on LinkedIn.
 
 ## License
 [Apache License 2.0](LICENSE)
+
+## Contributing
+Found a bug or have a feature idea? Check our [Contributing Guide](CONTRIBUTING.md) to get started.
 
 ## POC Results
 [Results of the First POC](poc-results.md)
