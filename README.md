@@ -20,7 +20,7 @@ security, and more. Every developer is a vital link in the value chain.
 
 But what happens when resources become a bottleneck? **The solution? Simply augment your team with artificial developers working autonomously—seamlessly integrated via Jira tickets and pull requests.**
 
-![AI Coding Agent Process](./process.png)
+![AI Coding Agent Process](./images/process.png)
 
 ## Key Features
 
@@ -58,7 +58,7 @@ The system interacts with several external services to fulfill the end-to-end wo
 
 The following diagram illustrates the high-level architecture of the system, highlighting the separation of concerns between the Agent and the Workbench:
 
-![Architecture](./acaica-architecture.png)
+![Architecture](./images/acaica-architecture.png)
 
 The core system consists of the following key components:
 
@@ -74,7 +74,7 @@ The core system consists of the following key components:
 ### LangGraph Workflow
 The system is built upon a stateful, multi-agent architecture powered by LangGraph. Instead of a monolithic process, the execution flow is intelligently orchestrated across specialized nodes.
 
-![LangGraph Workflow](./workflow_graph.png)
+![LangGraph Workflow](./images/workflow_graph.png)
 
 * **Router Node:** The Routing workflows process inputs and then directs them to context-specific agents. It acts as the entry point. It analyzes the incoming ticket context and determines the optimal execution strategy by selecting the appropriate specialist. 
 
@@ -144,12 +144,12 @@ docker compose down
 #### 5. Configure the Coding Agent
 Open the agent dashboard in browser, e.g. http://localhost:5000, and fill in the required fields. Press "Save Configuration". The data are stored in a SQLite database encrypted using the Fernet key.
 
-![Agent Dashboard](./dashboard.png)
+![Agent Dashboard](./images/dashboard.png)
 
 #### 6. Prepare your Trello Board
 Create new Cards at your Trello board in the list "Backlog" and move one into the list "Sprint Backlog". Here you can see an example:
 
-![Trello Board](./trello-board.png)
+![Trello Board](./images/trello-board.png)
 
 #### 7. Agent runs automatically
 The agent runs automatically when a new card is created in the "Sprint Backlog" list. It will generate or change the code based on the card description and create a pull request to your GitHub repository.
