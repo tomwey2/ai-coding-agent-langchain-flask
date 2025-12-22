@@ -32,6 +32,7 @@ As a **Proof of Concept (POC)**, the system demonstrates the following advanced 
 - **Resilient AI Logic:** Features advanced **self-healing mechanisms** with retry loops and iterative prompting to prevent stalling and minimize hallucinations.
 - **Dockerized & Scalable:** Runs in secure, isolated containers, allowing for effortless horizontal scaling—simply spin up additional instances to expand your virtual workforce on demand.
 - **LLM Selection:** Choose AI provider (OpenAI, Google, Mistral) and select a large LLMs for complex tasks and a small LLM for simple tasks, ensuring high-quality and precise results at optimized costs.
+- **Workbench Integration:** Integrates workbenches to provide a development environment for the Coding Agent executing unit tests.
 
 ## Future Roadmap: From POC to Professional SaaS
 
@@ -39,7 +40,7 @@ This Proof of Concept serves as the technological foundation for an upcoming sta
 
 Key milestones for professionalization include:
 
-- [ ] **Integrated Build Management & QA:** Implementation of industry-standard build tools (e.g., Maven, Gradle) directly within the agent's environment. Agents will compile code and execute local tests before committing, acting as a quality gate to ensure only functional, bug-free code enters the repository.
+- [X] **Integrated Build Management & QA:** Implementation of industry-standard build tools (e.g., Maven, Gradle) directly within the agent's environment. Agents will compile code and execute local tests before committing, acting as a quality gate to ensure only functional, bug-free code enters the repository.
 - [ ] **Active Code Reviews:** Agents will evolve from pure contributors to reviewers. They will analyze open Pull Requests, provide constructive feedback on code quality and security, and suggest optimizations—acting as an automated senior developer.
 - [ ] **Collaborative Swarm Intelligence:** Moving beyond isolated tasks, agents will be capable of communicating and collaborating with each other. This "swarm" capability will allow multiple agents to work jointly on complex, large-scale features, ensuring architectural consistency across the codebase.
 - [X] **Choose your preferred LLM** Support of other LLM providers, included open source models that run locally. 
@@ -51,51 +52,7 @@ Key milestones for professionalization include:
 
 The system is built upon a stateful, multi-agent architecture powered by LangGraph. Instead of a monolithic process, the execution flow is intelligently orchestrated across specialized nodes.
 
-```mermaid
----
-config:
-  flowchart:
-    curve: linear
----
-graph TD;
-	__start__([<p>__start__</p>]):::first
-	trello_fetch(trello_fetch)
-	router(router)
-	coder(coder)
-	bugfixer(bugfixer)
-	analyst(analyst)
-	tools_coder(tools_coder)
-	tools_analyst(tools_analyst)
-	correction(correction)
-	trello_update(trello_update)
-	__end__([<p>__end__</p>]):::last
-	__start__ --> trello_fetch;
-	analyst -. &nbsp;fail&nbsp; .-> correction;
-	analyst -. &nbsp;tools&nbsp; .-> tools_analyst;
-	analyst -. &nbsp;finish&nbsp; .-> trello_update;
-	bugfixer -. &nbsp;fail&nbsp; .-> correction;
-	bugfixer -. &nbsp;tools&nbsp; .-> tools_coder;
-	bugfixer -. &nbsp;finish&nbsp; .-> trello_update;
-	coder -. &nbsp;fail&nbsp; .-> correction;
-	coder -. &nbsp;tools&nbsp; .-> tools_coder;
-	coder -. &nbsp;finish&nbsp; .-> trello_update;
-	correction -.-> analyst;
-	correction -.-> bugfixer;
-	correction -.-> coder;
-	router -.-> analyst;
-	router -.-> bugfixer;
-	router -.-> coder;
-	tools_analyst -.-> analyst;
-	tools_coder -.-> bugfixer;
-	tools_coder -.-> coder;
-	trello_fetch -.-> __end__;
-	trello_fetch -.-> router;
-	trello_update --> __end__;
-	classDef default fill:#f2f0ff,line-height:1.2
-	classDef first fill-opacity:0
-	classDef last fill:#bfb6fc
-```
-
+![LangGraph Workflow](./workflow-graph.png)
 
 * **Router Node:** The Routing workflows process inputs and then directs them to context-specific agents. It acts as the entry point. It analyzes the incoming ticket context and determines the optimal execution strategy by selecting the appropriate specialist. 
 
