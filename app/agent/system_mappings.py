@@ -54,7 +54,7 @@ trello_response_parser = parse_trello_response
 
 SYSTEM_DEFINITIONS = {
     "TRELLO": {
-        "command": ["tsx", "/app/servers/trello/src/index.ts"],
+        "command": ["tsx", "/coding-agent/servers/trello/src/index.ts"],
         "polling_tool": "read_board",
         "polling_args": {"boardId": "{trello_todo_list_id}"},
         "response_parser": trello_response_parser,

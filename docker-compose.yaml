@@ -1,0 +1,41 @@
+services:
+  # ----------------------------------------
+  # CONTAINER 1: Der AI Coding Agent
+  # ----------------------------------------
+  ai-coding-agent:
+    build: .
+    container_name: ai-coding-agent
+    ports:
+      - "5000:5000"
+    environment:
+      - MISTRAL_API_KEY=$MISTRAL_API_KEY
+      - GITHUB_TOKEN=$GHCR_AI_CODING_AGENT_TOKEN
+      # in which workspace the agent works
+      - WORKSPACE=/coding-agent-workspace
+      # which workbench the agent uses
+      - WORKBENCH=workbench-backend-java
+    env_file: .env
+    volumes:
+      - ./app/instance:/coding-agent/app/instance
+      # mapping ./workspace to /workspace in container
+      - ./workspace:/coding-agent-workspace
+      # the socket to connect to the docker daemon
+      - /var/run/docker.sock:/var/run/docker.sock
+
+  # ----------------------------------------
+  # CONTAINER 2: The Workbench
+  # ----------------------------------------
+  workbench-backend-java:
+    image: maven:3.9-eclipse-temurin-21
+    container_name: workbench-backend-java
+    # this command keeps the container alive
+    command: tail -f /dev/null
+    # in which workspace=working_dir the commands are executed
+    working_dir: /coding-agent-workspace
+    volumes:
+      # HIER: Exakt gleicher Pfad wie beim Agenten, damit Pfad-Befehle stimmen
+      - ./workspace:/coding-agent-workspace
+      # Optional: Maven Cache (macht Tests schneller)
+      - ~/.m2:/root/.m2
+      # the socket to connect to the docker daemon
+      - /var/run/docker.sock:/var/run/docker.sock
