@@ -90,6 +90,26 @@ async def move_trello_card_to_list(card_id: str, list_id: str, sys_config: dict)
         )
 
 
+async def move_trello_card_to_named_list(
+    card_id: str, list_name: str, sys_config: dict
+) -> str:
+    """
+    Helper that resolves the Trello list ID by name and moves the
+    given card to that list. Returns the resolved list ID.
+    """
+    trello_lists = await get_all_trello_lists(sys_config)
+    target_list = next((data for data in trello_lists if data["name"] == list_name), None)
+
+    if not target_list:
+        raise ValueError(f"Trello list '{list_name}' not found on configured board")
+
+    target_list_id = target_list["id"]
+    logger.info(f"Found {list_name} list id: {target_list_id}")
+    await move_trello_card_to_list(card_id, target_list_id, sys_config)
+
+    return target_list_id
+
+
 async def add_comment_to_trello_card(card_id: str, comment: str, sys_config: dict):
     env = sys_config.get("env")
     if not env:

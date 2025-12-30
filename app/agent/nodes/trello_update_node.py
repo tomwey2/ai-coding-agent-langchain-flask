@@ -5,8 +5,7 @@ from langchain_core.messages import AIMessage
 from agent.state import AgentState
 from agent.trello_client import (
     add_comment_to_trello_card,
-    get_all_trello_lists,
-    move_trello_card_to_list,
+    move_trello_card_to_named_list,
 )
 
 AGENT_DEFAULT_COMMENT = "Task completed by AI Agent."
@@ -56,23 +55,17 @@ def create_trello_update_node(sys_config: dict):
 
         # move card to list
         try:
-            trello_lists = await get_all_trello_lists(sys_config)
             trello_moveto_list = sys_config["trello_moveto_list"]
-            moveto_list = next(
-                (data for data in trello_lists if data["name"] == trello_moveto_list),
-                None,
+            trello_moveto_list_id = await move_trello_card_to_named_list(
+                card_id, trello_moveto_list, sys_config
             )
-            if not moveto_list:
-                logger.warning(f"{trello_moveto_list} list not found")
-                return {"trello_card_id": None}
-
-            trello_moveto_list_id = moveto_list["id"]
-            logger.info(f"Found {trello_moveto_list} list id: {trello_moveto_list_id}")
-            await move_trello_card_to_list(card_id, trello_moveto_list_id, sys_config)
 
             return {
                 "trello_list_id": trello_moveto_list_id,
             }
+        except ValueError as exc:
+            logger.warning(str(exc))
+            return {"trello_card_id": None}
         except Exception as e:
             logger.error(f"Error moving card to list: {e}")
             return {"trello_card_id": None}
