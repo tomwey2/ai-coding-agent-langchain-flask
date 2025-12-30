@@ -64,6 +64,7 @@ def create_app(encryption_key: Fernet) -> Flask:
                     },
                     "trello_board_id": request.form.get("trello_board_id"),
                     "trello_readfrom_list": request.form.get("trello_readfrom_list"),
+                    "trello_progress_list": request.form.get("trello_progress_list"),
                     "trello_moveto_list": request.form.get("trello_moveto_list"),
                 }
                 new_config_data.update(trello_data)
@@ -131,9 +132,8 @@ def create_app(encryption_key: Fernet) -> Flask:
                     "TRELLO_TOKEN"
                 )
                 form_data["trello_board_id"] = saved_data.get("trello_board_id")
-                form_data["trello_readfrom_list"] = saved_data.get(
-                    "trello_readfrom_list"
-                )
+                form_data["trello_readfrom_list"] = saved_data.get("trello_readfrom_list")
+                form_data["trello_progress_list"] = saved_data.get("trello_progress_list")
                 form_data["trello_moveto_list"] = saved_data.get("trello_moveto_list")
                 form_data["trello_base_url"] = saved_data.get("env", {}).get(
                     "TRELLO_BASE_URL", "https://api.trello.com/1"

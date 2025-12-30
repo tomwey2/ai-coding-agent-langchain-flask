@@ -188,7 +188,7 @@ def create_workflow(
     workflow.add_node("trello_fetch", create_trello_fetch_node(sys_config))
     workflow.add_node("router", create_router_node(llm_small))
 
-    workflow.add_node("coder", create_coder_node(llm_large, coder_tools, repo_url))
+    workflow.add_node("coder", create_coder_node(llm_large, coder_tools, repo_url, sys_config))
     workflow.add_node(
         "bugfixer", create_bugfixer_node(llm_large, coder_tools, repo_url)
     )
