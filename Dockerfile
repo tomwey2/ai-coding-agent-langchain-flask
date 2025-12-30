@@ -35,7 +35,8 @@ COPY . .
 
 # 6. Git Dummy-Config (damit der Agent committen kann)
 RUN git config --global user.email "agent@bot.local" && \
-    git config --global user.name "AI Coding Agent"
+    git config --global user.name "AI Coding Agent" && \
+    git config --global safe.directory "/coding-agent-workspace"
 
 # 7. Startbefehl
 CMD ["uv", "run", "app/main.py"]
