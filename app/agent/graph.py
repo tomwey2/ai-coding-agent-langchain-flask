@@ -161,6 +161,7 @@ def create_workflow(
     task_tools: list,
     repo_url: str,
     sys_config: dict,
+    agent_stack: str,
 ) -> StateGraph:
     # --- Tool Sets ---
     base_tools = [log_thought, finish_task]
@@ -188,15 +189,19 @@ def create_workflow(
     workflow.add_node("trello_fetch", create_trello_fetch_node(sys_config))
     workflow.add_node("router", create_router_node(llm_small))
 
-    workflow.add_node("coder", create_coder_node(llm_large, coder_tools, repo_url))
     workflow.add_node(
-        "bugfixer", create_bugfixer_node(llm_large, coder_tools, repo_url)
+        "coder", create_coder_node(llm_large, coder_tools, repo_url, agent_stack)
     )
     workflow.add_node(
-        "analyst", create_analyst_node(llm_large, analyst_tools, repo_url)
+        "bugfixer", create_bugfixer_node(llm_large, coder_tools, repo_url, agent_stack)
+    )
+    workflow.add_node(
+        "analyst", create_analyst_node(llm_large, analyst_tools, repo_url, agent_stack)
     )
 
-    workflow.add_node("tester", create_tester_node(llm_large, tester_tools, repo_url))
+    workflow.add_node(
+        "tester", create_tester_node(llm_large, tester_tools, repo_url, agent_stack)
+    )
 
     # Tool Nodes
     workflow.add_node("tools_coder", ToolNode(coder_tools))

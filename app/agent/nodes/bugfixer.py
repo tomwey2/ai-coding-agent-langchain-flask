@@ -1,39 +1,16 @@
 import logging
 
-from langchain_core.messages import AIMessage, HumanMessage, SystemMessage
-
 from agent.state import AgentState
+from agent.utils import load_system_prompt
+from langchain_core.messages import AIMessage, HumanMessage, SystemMessage
 
 logger = logging.getLogger(__name__)
 
-BUGFIXER_PROMPT = """
-You are an expert autonomous bugfixing agent for error correction.
-Your goal is to solve the task efficiently using the provided TOOLS.
 
-TOOLS:
-- list_files, read_file: Analyze.
-- log_thought: PLAN before you act!
-- write_to_file: Create/Edit code.
-- git_add, git_commit, git_push_origin: Save work.
-- finish_task: Mark as done.
+def create_bugfixer_node(llm, tools, repo_url, agent_stack):
+    sys_msg = load_system_prompt(agent_stack, "bugfixer")
 
-RULES:
-1. Do NOT chat. Use 'log_thought' to explain your thinking.
-2. If you write code, you MUST save it ('write_to_file').
-3. 'git_push_origin' is MANDATORY before 'finish_task'.
-
-CHECKLIST:
-1. [ ] Read failing files (read_file).
-2. [ ] Plan fix (log_thought).
-3. [ ] Apply fix (write_to_file).
-4. [ ] Save (git_add -> commit -> push).
-5. [ ] Finish.
-"""
-
-
-def create_bugfixer_node(llm, tools, repo_url):
     async def bugfixer_node(state: AgentState):
-        sys_msg = f"{BUGFIXER_PROMPT}\nRepo: {repo_url}\n\nREMINDER: Use 'log_thought' to plan."
         current_messages = [SystemMessage(content=sys_msg)] + state["messages"]
 
         current_tool_choice = "auto"

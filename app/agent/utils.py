@@ -23,17 +23,10 @@ def get_workbench():
 def load_system_prompt(stack: str, role: str) -> str:
     """
     Lädt den System-Prompt basierend auf Stack und Rolle.
-    z.B. stack="backend_java_spring", role="coder" -> liest config/java_spring/system_coder.txt
+    z.B. stack="backend", role="coder" -> liest workbench/backend/systemprompt_coder.md
     """
 
-    # Basis-Pfad (angepasst an deine Struktur)
-    base_dir = os.path.dirname(os.path.abspath(__file__))  # Ordner der aktuellen Datei
-    # Pfad zur config hoch navigieren, falls nötig. Annahme: config liegt im Root.
-    project_root = os.path.dirname(base_dir)
-
-    file_path = os.path.join(
-        project_root, "workbench", stack, f"systemprompt_{role}.md"
-    )
+    file_path = os.path.join("workbench", stack, f"systemprompt_{role}.md")
 
     logger.info(f"Loading system prompt: {file_path}")
     try:
