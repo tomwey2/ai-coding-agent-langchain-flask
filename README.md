@@ -125,13 +125,16 @@ python3 -c "from cryptography.fernet import Fernet; print(Fernet.generate_key().
 ```
 
 Put the key into the `.env` file.
+```bash
+ENCRYPTION_KEY=<your-encryption-key>
+```
 
 #### 3. Build the Image and Run the Container
 You must pass your API keys as environment variables into the docker-compose.yml file.
 There is an example with Mistral. If you choose OpenAI, then you replace `MISTRAL_API_KEY` with `OPENAI_API_KEY`.
 
 ```bash
-docker compose up -d --build
+MISTRAL_API_KEY=<your-mistral-api-key> GHCR_AI_CODING_AGENT_TOKEN=<your-github-token> docker compose up -d --build
 ```
 
 #### 4. Stop the Container
