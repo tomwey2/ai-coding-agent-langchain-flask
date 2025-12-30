@@ -19,7 +19,9 @@ def load_system_prompt(stack: str, role: str) -> str:
     # Pfad zur config hoch navigieren, falls nötig. Annahme: config liegt im Root.
     project_root = os.path.dirname(base_dir)
 
-    file_path = os.path.join(project_root, "config", stack, f"systemprompt_{role}.txt")
+    file_path = os.path.join(
+        project_root, "workbench", stack, f"systemprompt_{role}.md"
+    )
 
     try:
         with open(file_path, "r", encoding="utf-8") as f:
