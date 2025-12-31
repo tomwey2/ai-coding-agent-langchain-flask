@@ -3,34 +3,11 @@ from typing import Literal
 
 from agent.local_tools import report_test_result
 from agent.state import AgentState
+from agent.utils import load_system_prompt
 from langchain_core.messages import SystemMessage
 from pydantic import BaseModel, Field
 
 logger = logging.getLogger(__name__)
-
-TESTER_SYSTEM_PROMPT = """You are a QA Software Tester.
-Your job is to run tests, handle version control, and report the result.
-
-TOOLS AVAILABLE:
-- run_java_command: Execute 'mvn clean test'.
-- git_add, git_commit, git_push_origin: Save work.
-- create_pull_request: Create a pull request. (MANDATORY!!)
-- report_test_result: Call this tool FINALLY to report if the task is 'pass' or 'fail'.
-
-WORKFLOW:
-1. EXECUTE: Run 'mvn clean test'.
-2. ANALYZE: Look at the console output.
-   - IF FAIL: Call TesterResult(result='fail', summary='Error details...'). DONE.
-   - IF SUCCESS: Proceed to step 3.
-3. GIT: git_add -> git_commit -> git_push.
-4. PR: Create the Pull Request.
-5. FINISH: Call TesterResult(result='pass', summary='PR created...').
-
-RULES:
-- Do not guess the result. You MUST run the command first.
-- Do NOT run git commands before running tests. ONLY run git commands if tests pass.
-- If tests fail, DO NOT create a PR. Report fail immediately.
-"""
 
 
 class TesterResult(BaseModel):
@@ -46,22 +23,15 @@ class TesterResult(BaseModel):
     )
 
 
-def create_tester_node(llm, tools, repo_url):
-    sys_msg = f"{TESTER_SYSTEM_PROMPT}\nRepo: {repo_url}\n\nREMINDER: Run tests first!"
+def create_tester_node(llm, tools, repo_url, agent_stack):
+    sys_msg = load_system_prompt(agent_stack, "coder")
     llm_with_tools = llm.bind_tools(tools + [report_test_result])
 
     async def tester_node(state: AgentState):
-        messages = state["messages"]
-
-        # System Prompt hinzufügen (falls noch nicht da)
-        if (
-            not isinstance(messages[0], SystemMessage)
-            or "QA Software Tester" not in messages[0].content
-        ):
-            messages = [SystemMessage(content=sys_msg)] + messages
+        current_messages = [SystemMessage(content=sys_msg)] + state["messages"]
 
         # LLM Aufruf
-        response = await llm_with_tools.ainvoke(messages)
+        response = await llm_with_tools.ainvoke(current_messages)
 
         has_content = bool(response.content)
         has_tool_calls = bool(getattr(response, "tool_calls", []))

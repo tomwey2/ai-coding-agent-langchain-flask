@@ -7,7 +7,7 @@ from langgraph.graph.message import add_messages
 class AgentState(TypedDict):
     messages: Annotated[list[BaseMessage], add_messages]
     next_step: str
-    stack: str
+    agent_stack: str  # Backend or Frontend
     retry_count: int  # Versuche, wie oft zwischen coder und tester gewechselt wurde
     test_result: Optional[str]
     error_log: Optional[str]  # Optional: Speichert den letzten Fehler explizit
