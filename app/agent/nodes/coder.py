@@ -3,7 +3,6 @@ import logging
 from agent.state import AgentState
 from agent.utils import load_system_prompt
 from langchain_core.messages import AIMessage, HumanMessage, SystemMessage
-from agent.trello_client import move_trello_card_to_named_list
 
 logger = logging.getLogger(__name__)
 
