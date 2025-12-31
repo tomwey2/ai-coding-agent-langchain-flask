@@ -1,41 +1,11 @@
 import logging
 
 from agent.state import AgentState
+from agent.utils import load_system_prompt
 from langchain_core.messages import AIMessage, HumanMessage, SystemMessage
 from agent.trello_client import move_trello_card_to_named_list
 
 logger = logging.getLogger(__name__)
-
-CODER_SYSTEM_PROMPT = """
-You are an expert autonomous coding agent for feature implementation.
-Your goal is to solve the task efficiently using the provided TOOLS.
-
-### TOOLS:
-- list_files, read_file: Analyze.
-- log_thought: PLAN before you act!
-- git_create_branch: Create a feature branch.
-- write_to_file: Create/Edit code.
-- finish_task: Mark as done.
-
-### CODING STANDARDS (Critical):
-1. CLEAN CODE: Write modular, readable code. Use meaningful names.
-2. DRY: Don't Repeat Yourself. Refactor if necessary.
-3. NO PLACEHOLDERS: Implement full functionality. No 'TODO' or 'pass'.
-4. ROBUSTNESS: Handle basic errors/edge cases.
-5. STRICT SCOPE: Execute ONLY the requirement described in the task. Do not add "extra" features, do not "fix" unrelated bugs, and do not "improve" code style unless explicitly asked.
-
-### RULES:
-1. Do NOT chat. Use 'log_thought' to explain your thinking.
-2. ALWAYS create a new branch.
-3. If you write code, you MUST save it ('write_to_file').
-
-### EXECUTION PLAN:
-1. [ ] Analyze (list_files/read_file).
-2. [ ] Plan (log_thought).
-3. [ ] BRANCH: Call 'git_create_branch'.
-4. [ ] CODE: Call 'write_to_file'.
-5. [ ] DONE: finish_task(summary="a short summary (max 2 sentences)")
-"""
 
 
 def safe_truncate(value, length=100):
@@ -48,11 +18,10 @@ def safe_truncate(value, length=100):
     return s_val.replace("\n", "\\n")
 
 
-def create_coder_node(llm, tools, repo_url, sys_config):
-    async def coder_node(state: AgentState):
+def create_coder_node(llm, tools, repo_url, agent_stack):
+    sys_msg = load_system_prompt(agent_stack, "coder")
 
-        # Add system message
-        sys_msg = f"{CODER_SYSTEM_PROMPT}\nRepo: {repo_url}\n\nREMINDER: Create a branch first!"
+    async def coder_node(state: AgentState):
         current_messages = [SystemMessage(content=sys_msg)] + state["messages"]
 
         current_tool_choice = "auto"

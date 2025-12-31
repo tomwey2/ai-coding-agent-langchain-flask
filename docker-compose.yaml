@@ -13,7 +13,7 @@ services:
       # in which workspace the agent works
       - WORKSPACE=/coding-agent-workspace
       # which workbench the agent uses
-      - WORKBENCH=workbench-backend-java
+      - WORKBENCH=workbench-backend
     env_file: .env
     volumes:
       - ./app/instance:/coding-agent/app/instance
@@ -25,9 +25,9 @@ services:
   # ----------------------------------------
   # CONTAINER 2: The Workbench
   # ----------------------------------------
-  workbench-backend-java:
+  workbench-backend:
     image: maven:3.9-eclipse-temurin-21
-    container_name: workbench-backend-java
+    container_name: workbench-backend
     # this command keeps the container alive
     command: tail -f /dev/null
     # in which workspace=working_dir the commands are executed

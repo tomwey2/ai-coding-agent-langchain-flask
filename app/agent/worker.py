@@ -17,6 +17,8 @@ from agent.mcp_adapter import McpServerClient
 from agent.system_mappings import SYSTEM_DEFINITIONS
 from agent.utils import (
     ensure_repository_exists,
+    get_workbench,
+    get_workspace,
     save_graph_as_mermaid,
     save_graph_as_png,
 )
@@ -26,8 +28,8 @@ logger = logging.getLogger(__name__)
 
 async def run_agent_cycle_async(app: Flask, encryption_key: Fernet) -> None:
     with app.app_context():
-        WORKSPACE = os.environ.get("WORKSPACE", "")
-        logger.info(f"WORK_DIR: {WORKSPACE}")
+        WORKSPACE = get_workspace()
+        logger.info(f"WORKSPACE: {WORKSPACE}")
 
         config = AgentConfig.query.first()
         if not config or not config.is_active:
@@ -78,6 +80,10 @@ async def run_agent_cycle_async(app: Flask, encryption_key: Fernet) -> None:
                 f"Loaded {len(git_tools)} Git tools and {len(task_tools)} Task tools."
             )
 
+            # --- Agent Stack ---
+            WORKBENCH = get_workbench()
+            agent_stack = "backend" if WORKBENCH == "workbench-backend" else "frontend"
+
             # --- LLM and Graph Creation ---
             llm_large: BaseChatModel = get_llm(sys_config, True)
             llm_small: BaseChatModel = get_llm(sys_config, True)
@@ -88,6 +94,7 @@ async def run_agent_cycle_async(app: Flask, encryption_key: Fernet) -> None:
                 task_tools,
                 repo_url,
                 sys_config,
+                agent_stack,
             )
 
             # --- Graph Execution ---
@@ -101,6 +108,7 @@ async def run_agent_cycle_async(app: Flask, encryption_key: Fernet) -> None:
                     "next_step": "",
                     "trello_card_id": None,
                     "trello_list_id": None,
+                    "agent_stack": agent_stack,
                 },
                 {"recursion_limit": 50},
             )

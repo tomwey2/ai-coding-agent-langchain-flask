@@ -8,6 +8,8 @@ import requests
 from docker.errors import APIError, NotFound
 from langchain_core.tools import tool
 
+from agent.utils import get_workbench, get_workspace
+
 logger = logging.getLogger(__name__)
 
 
@@ -18,17 +20,6 @@ try:
 except Exception as e:
     logger.warning(f"No docker connection! {e}")
     client = None
-
-
-# Hilfsfunktion, um Redundanz zu vermeiden
-def get_workspace():
-    # Holt den Pfad aus der Env-Var, die wir im Docker-Compose gesetzt haben
-    return os.environ.get("WORKSPACE", "/coding-agent-workspace")
-
-
-def get_workbench():
-    # Holt den Pfad aus der Env-Var, die wir im Docker-Compose gesetzt haben
-    return os.environ.get("WORKBENCH", "")
 
 
 @tool

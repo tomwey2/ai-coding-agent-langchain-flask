@@ -9,18 +9,26 @@ from langchain_core.messages import AIMessage
 logger = logging.getLogger(__name__)
 
 
+# Hilfsfunktion, um Redundanz zu vermeiden
+def get_workspace():
+    # Holt den Pfad aus der Env-Var, die wir im Docker-Compose gesetzt haben
+    return os.environ.get("WORKSPACE", "/coding-agent-workspace")
+
+
+def get_workbench():
+    # Holt den Pfad aus der Env-Var, die wir im Docker-Compose gesetzt haben
+    return os.environ.get("WORKBENCH", "")
+
+
 def load_system_prompt(stack: str, role: str) -> str:
     """
     Lädt den System-Prompt basierend auf Stack und Rolle.
-    z.B. stack="backend_java_spring", role="coder" -> liest config/java_spring/system_coder.txt
+    z.B. stack="backend", role="coder" -> liest workbench/backend/systemprompt_coder.md
     """
-    # Basis-Pfad (angepasst an deine Struktur)
-    base_dir = os.path.dirname(os.path.abspath(__file__))  # Ordner der aktuellen Datei
-    # Pfad zur config hoch navigieren, falls nötig. Annahme: config liegt im Root.
-    project_root = os.path.dirname(base_dir)
 
-    file_path = os.path.join(project_root, "config", stack, f"systemprompt_{role}.txt")
+    file_path = os.path.join("workbench", stack, f"systemprompt_{role}.md")
 
+    logger.info(f"Loading system prompt: {file_path}")
     try:
         with open(file_path, "r", encoding="utf-8") as f:
             return f.read()
