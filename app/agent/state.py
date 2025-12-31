@@ -13,3 +13,4 @@ class AgentState(TypedDict):
     error_log: Optional[str]  # Optional: Speichert den letzten Fehler explizit
     trello_card_id: Optional[str]
     trello_list_id: Optional[str]
+    trello_in_progress: bool

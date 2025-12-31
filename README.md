@@ -155,11 +155,11 @@ Create new Cards at your Trello board in the list "Backlog" and move one into th
 ![Trello Board](./images/trello-board.png)
 
 #### 7. Agent runs automatically
-The agent runs automatically when a new card is created in the "Sprint Backlog" list. It will generate or change the code based on the card description and create a pull request to your GitHub repository.
+The agent runs automatically when a new card is created in the "Sprint Backlog" list. It moves the card to the list "In Progress" and starts the workflow. It will generate or change the code based on the card description and create a pull request to your GitHub repository.
 After the PR creation it creates a comment in the card with the link to the pull request and move it to the list "In Review".
 
 #### 8. Check the Results
-Runs the coding agents successfully, check the card at your Trello board. There it should be a link to the pull request in GitHub. Check the results in the pull request. 
+Runs the coding agents successfully, check the card at your Trello board. There it should be a link to the pull request in GitHub. Check the results in the pull request.
 
 **Please note: This is still a proof of concept.**
 

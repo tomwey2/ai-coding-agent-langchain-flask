@@ -51,14 +51,6 @@ def safe_truncate(value, length=100):
 def create_coder_node(llm, tools, repo_url, sys_config):
     async def coder_node(state: AgentState):
 
-        # Move card to in_progress list
-        card_id = state.get("trello_card_id")
-        trello_progress_list = sys_config.get("trello_progress_list")
-        logger.info(
-            f"Moving Trello card {card_id} to '{trello_progress_list}' list"
-        )
-        await move_trello_card_to_named_list(card_id, trello_progress_list, sys_config)
-
         # Add system message
         sys_msg = f"{CODER_SYSTEM_PROMPT}\nRepo: {repo_url}\n\nREMINDER: Create a branch first!"
         current_messages = [SystemMessage(content=sys_msg)] + state["messages"]
