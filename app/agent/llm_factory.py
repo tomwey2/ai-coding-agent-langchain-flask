@@ -57,10 +57,12 @@ def _create_openrouter_llm(model: str, temperature: float) -> BaseChatModel:
     )
 
 def _create_ollama_llm(model: str, temperature: float) -> BaseChatModel:
+    base_url = os.environ.get("OLLAMA_BASE_URL", "http://host.docker.internal:11434")
+    logger.info(f"Using Ollama base URL: {base_url}")
     return ChatOllama(
         model=model,
         temperature=temperature,
-        base_url="http://host.docker.internal:11434"
+        base_url=base_url,
     )
 
 LLM_PROVIDERS: Dict[str, Callable[[str, float], BaseChatModel]] = {
