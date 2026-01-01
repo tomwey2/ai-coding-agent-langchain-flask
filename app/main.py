@@ -20,14 +20,46 @@ if __name__ == "__main__":
     logging.getLogger("httpx").setLevel(logging.WARNING)
     logging.getLogger("httpcore").setLevel(logging.WARNING)
 
-    if not (
-        os.environ.get("MISTRAL_API_KEY")
-        or os.environ.get("OPENAI_API_KEY")
-        or os.environ.get("GOOGLE_API_KEY")
-    ):
-        raise ValueError(
-            "MISTRAL|OPENAI|GOOGLE_API key is not set. Application cannot start."
-        )
+    logger = logging.getLogger(__name__)
+
+    GOOGLE_API_KEY = os.environ.get("GOOGLE_API_KEY")
+    logger.info(f"GOOGLE_API_KEY: {GOOGLE_API_KEY}")
+    if not GOOGLE_API_KEY:
+        logger.warning("GOOGLE_API_KEY is not set")
+    
+    MISTRAL_API_KEY = os.environ.get("MISTRAL_API_KEY")
+    logger.info(f"MISTRAL_API_KEY: {MISTRAL_API_KEY}")
+    if not MISTRAL_API_KEY:
+        logger.warning("MISTRAL_API_KEY is not set")
+    
+    OPENAI_API_KEY = os.environ.get("OPENAI_API_KEY")
+    logger.info(f"OPENAI_API_KEY: {OPENAI_API_KEY}")
+    if not OPENAI_API_KEY:
+        logger.warning("OPENAI_API_KEY is not set")
+    
+    OPENROUTER_API_KEY = os.environ.get("OPENROUTER_API_KEY")
+    logger.info(f"OPENROUTER_API_KEY: {OPENROUTER_API_KEY}")
+    if not OPENROUTER_API_KEY:
+        logger.warning("OPENROUTER_API_KEY is not set")
+    
+    OLLAMA_API_KEY = os.environ.get("OLLAMA_API_KEY")
+    logger.info(f"OLLAMA_API_KEY: {OLLAMA_API_KEY}")
+    if not OLLAMA_API_KEY:
+        logger.warning("OLLAMA_API_KEY is not set")
+    
+    OLLAMA_BASE_URL = os.environ.get("OLLAMA_BASE_URL")
+    logger.info(f"OLLAMA_BASE_URL: {OLLAMA_BASE_URL}")
+    if not OLLAMA_BASE_URL:
+        logger.warning("OLLAMA_BASE_URL is not set")
+    
+    # if not (
+    #     os.environ.get("MISTRAL_API_KEY")
+    #     or os.environ.get("OPENAI_API_KEY")
+    #     or os.environ.get("GOOGLE_API_KEY")
+    # ):
+    #     raise ValueError(
+    #         "MISTRAL|OPENAI|GOOGLE_API key is not set. Application cannot start."
+    #     )
 
     if not os.environ.get("GITHUB_TOKEN"):
         raise ValueError("GITHUB_TOKEN is not set. Application cannot start.")

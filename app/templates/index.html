@@ -346,6 +346,28 @@
                                                 >
                                                     Google
                                                 </option>
+                                                <option
+                                                    value="openrouter"
+                                                    {%
+                                                    if
+                                                    form_data.llm_provider=="openrouter"
+                                                    %}selected{%
+                                                    endif
+                                                    %}
+                                                >
+                                                    OpenRouter
+                                                </option>
+                                                <option
+                                                    value="ollama"
+                                                    {%
+                                                    if
+                                                    form_data.llm_provider=="ollama"
+                                                    %}selected{%
+                                                    endif
+                                                    %}
+                                                >
+                                                    Ollama
+                                                </option>
                                             </select>
                                         </div>
                                         <div class="mb-3">
