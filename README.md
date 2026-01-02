@@ -132,10 +132,21 @@ ENCRYPTION_KEY=<your-encryption-key>
 #### 3. Build the Image and Run the Container
 You must pass your API keys as environment variables into the docker-compose.yml file.
 There is an example with Mistral. If you choose OpenAI, then you replace `MISTRAL_API_KEY` with `OPENAI_API_KEY`.
+You can provide the API key for each of providers you want to support. You can later select/switch the provider in the Dashboard of the Coding Agent.
+Supported providers:
+
+|Provider|Key environment variable|Additional config|
+|---|---|---|
+|Mistral|`MISTRAL_API_KEY`|-|
+|OpenAI|`OPENAI_API_KEY`|-|
+|Google|`GOOGLE_API_KEY`|-|
+|Ollama|`OLLAMA_API_KEY` (optional for local setups)|`OLLAMA_BASE_URL` - default http://host.docker.internal:11434|
 
 ```bash
 MISTRAL_API_KEY=<your-mistral-api-key> GHCR_AI_CODING_AGENT_TOKEN=<your-github-token> docker compose up -d --build
 ```
+
+To support more Providers add the key in the environment variables.
 
 #### 4. Stop the Container
 

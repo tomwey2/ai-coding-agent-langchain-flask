@@ -23,6 +23,7 @@ dependencies = [
     { name = "langchain-core" },
     { name = "langchain-google-genai" },
     { name = "langchain-mistralai" },
+    { name = "langchain-ollama" },
     { name = "langchain-openai" },
     { name = "langgraph" },
     { name = "mcp" },
@@ -43,7 +44,8 @@ requires-dist = [
     { name = "langchain", specifier = ">=0.3.0" },
     { name = "langchain-core", specifier = ">=0.3.0" },
     { name = "langchain-google-genai", specifier = ">=3.2.0" },
-    { name = "langchain-mistralai", specifier = ">=0.2.0" },
+    { name = "langchain-mistralai", specifier = ">=1.1.1" },
+    { name = "langchain-ollama", specifier = ">=1.0.1" },
     { name = "langchain-openai", specifier = ">=1.1.0" },
     { name = "langgraph", specifier = ">=1.0.1" },
     { name = "mcp", specifier = ">=1.22.0" },
@@ -963,7 +965,7 @@ wheels = [
 
 [[package]]
 name = "langchain-mistralai"
-version = "1.1.0"
+version = "1.1.1"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
     { name = "httpx" },
@@ -972,9 +974,22 @@ dependencies = [
     { name = "pydantic" },
     { name = "tokenizers" },
 ]
-sdist = { url = "https://files.pythonhosted.org/packages/0c/24/3a79ad5944273cdd98b0e7ab9ff4c92866ce795a744af84ab28084caa4ee/langchain_mistralai-1.1.0.tar.gz", hash = "sha256:04046571a879201a81ff9c34c350b1e1f1bd7775efd6e17cedbb0e7386cd244d", size = 140787, upload-time = "2025-11-24T14:18:50.522Z" }
+sdist = { url = "https://files.pythonhosted.org/packages/a8/07/cdfcfed8dc680634ae470868aecb9ac48f953302b13c0bb119f6ee96e1be/langchain_mistralai-1.1.1.tar.gz", hash = "sha256:2430dd6c5e714252ce58bdf9453da4e1f2c694e239dde7e9c4d488a6d1ef2368", size = 143032, upload-time = "2025-12-12T22:11:54.594Z" }
 wheels = [
-    { url = "https://files.pythonhosted.org/packages/e6/51/9735a4c5d827ae36eeff25611a022fc63e774ec15168c6140084b9abcfce/langchain_mistralai-1.1.0-py3-none-any.whl", hash = "sha256:f3938bcc3a8fbfbb6b90b17401d0991f8d31da3796f41f3409220ddc4815f5c9", size = 19418, upload-time = "2025-11-24T14:18:49.697Z" },
+    { url = "https://files.pythonhosted.org/packages/2f/96/67e029665e9c348a2f17d1a681dc139631a6d8241b7a8d8e6ee69ff70a4b/langchain_mistralai-1.1.1-py3-none-any.whl", hash = "sha256:47839fc69c879bad4ff60133f238c15574416c2dcd850121621a7e9de45800c1", size = 19439, upload-time = "2025-12-12T22:11:53.546Z" },
+]
+
+[[package]]
+name = "langchain-ollama"
+version = "1.0.1"
+source = { registry = "https://pypi.org/simple" }
+dependencies = [
+    { name = "langchain-core" },
+    { name = "ollama" },
+]
+sdist = { url = "https://files.pythonhosted.org/packages/73/51/72cd04d74278f3575f921084f34280e2f837211dc008c9671c268c578afe/langchain_ollama-1.0.1.tar.gz", hash = "sha256:e37880c2f41cdb0895e863b1cfd0c2c840a117868b3f32e44fef42569e367443", size = 153850, upload-time = "2025-12-12T21:48:28.68Z" }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/e3/46/f2907da16dc5a5a6c679f83b7de21176178afad8d2ca635a581429580ef6/langchain_ollama-1.0.1-py3-none-any.whl", hash = "sha256:37eb939a4718a0255fe31e19fbb0def044746c717b01b97d397606ebc3e9b440", size = 29207, upload-time = "2025-12-12T21:48:27.832Z" },
 ]
 
 [[package]]
@@ -1177,6 +1192,19 @@ dependencies = [
 sdist = { url = "https://files.pythonhosted.org/packages/3d/48/438589d76199c9acdb4d2ea336aa679d8f8ead6ff8d201248d2b27311126/mcp_server_git-2025.9.25.tar.gz", hash = "sha256:487d9359d67dd73187d77db0200601f21d6dc9d0d79e8df69b012ceb2c9923e4", size = 27312, upload-time = "2025-09-25T21:26:01.819Z" }
 wheels = [
     { url = "https://files.pythonhosted.org/packages/0c/fe/c1c2dd5b47f88e93b6361bd0a6acdf6a2530d1632de5b8845cbec2b34751/mcp_server_git-2025.9.25-py3-none-any.whl", hash = "sha256:336ea42dd2eccb24631630b5435594cdeab74bc1010530888db7d7e46add1219", size = 9844, upload-time = "2025-09-25T21:26:00.382Z" },
+]
+
+[[package]]
+name = "ollama"
+version = "0.6.1"
+source = { registry = "https://pypi.org/simple" }
+dependencies = [
+    { name = "httpx" },
+    { name = "pydantic" },
+]
+sdist = { url = "https://files.pythonhosted.org/packages/9d/5a/652dac4b7affc2b37b95386f8ae78f22808af09d720689e3d7a86b6ed98e/ollama-0.6.1.tar.gz", hash = "sha256:478c67546836430034b415ed64fa890fd3d1ff91781a9d548b3325274e69d7c6", size = 51620, upload-time = "2025-11-13T23:02:17.416Z" }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/47/4f/4a617ee93d8208d2bcf26b2d8b9402ceaed03e3853c754940e2290fed063/ollama-0.6.1-py3-none-any.whl", hash = "sha256:fc4c984b345735c5486faeee67d8a265214a31cbb828167782dc642ce0a2bf8c", size = 14354, upload-time = "2025-11-13T23:02:16.292Z" },
 ]
 
 [[package]]

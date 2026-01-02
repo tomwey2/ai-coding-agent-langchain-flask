@@ -1,7 +1,8 @@
 import logging
 from typing import Dict, Literal
 
-from langchain_core.messages import SystemMessage
+from langchain_core.exceptions import OutputParserException
+from langchain_core.messages import HumanMessage, SystemMessage
 from pydantic import BaseModel, Field
 
 from agent.state import AgentState
@@ -15,6 +16,8 @@ OPTIONS:
 1. 'coder': For implementing new features, creating new files, or refactoring.
 2. 'bugfixer': For fixing errors, debugging, or solving issues in existing code.
 3. 'analyst': For explaining code, reviewing architecture, or answering questions (NO code changes).
+
+Respond ONLY with valid JSON that matches {"role":"coder"|"bugfixer"|"analyst"} with no additional text or markdown.
 """
 
 
@@ -30,14 +33,27 @@ def create_router_node(llm):
     structured_llm = llm.with_structured_output(RouterDecision)
 
     async def router_node(state: AgentState) -> Dict[str, str]:
-        messages = state["messages"]
-        response = await structured_llm.ainvoke(
-            [SystemMessage(content=ROUTER_SYSTEM)] + messages
-        )
+        base_messages = [SystemMessage(content=ROUTER_SYSTEM)] + state["messages"]
+        current_messages = list(base_messages)
 
-        logger.info(f"Router decided: {response.role}")
+        for attempt in range(3):
+            try:
+                response = await structured_llm.ainvoke(current_messages)
+                logger.info(f"Router decided: {response.role}")
+                return {"next_step": response.role}
+            except OutputParserException as exc:
+                logger.warning(
+                    "Router invalid JSON attempt %d/3: %s", attempt + 1, exc, exc_info=True
+                )
+                correction = HumanMessage(
+                    content=(
+                        "STOP. Respond ONLY with compact JSON like "
+                        '{"role":"coder"} and no other text.'
+                    )
+                )
+                current_messages.append(correction)
 
-        # Rückgabe als String für den Graph
-        return {"next_step": response.role}
+        logger.error("Router failed to produce valid JSON after retries.")
+        raise
 
     return router_node

@@ -32,6 +32,22 @@ def report_test_result(result: str, summary: str):
     return f"Test Process Completed. Result: {result}. Summary: {summary}"
 
 
+MAX_TOOL_OUTPUT_CHARS = 20000
+
+
+def _truncate_tool_output(output: str, limit: int = MAX_TOOL_OUTPUT_CHARS) -> str:
+    if len(output) <= limit:
+        return output
+    
+    # Truncate middle to keep start and end for better context
+    half = limit // 2
+    return (
+        output[:half]
+        + "\n... [output truncated to stay within prompt budget] ...\n"
+        + output[-half:]
+    )
+
+
 @tool
 def run_java_command(command: str):
     """
@@ -58,6 +74,8 @@ def run_java_command(command: str):
         exit_code = exec_result.exit_code
 
         logger.debug(f"--- COMMAND OUTPUT ({command}) ---\n{output}\n---")
+        output = _truncate_tool_output(output)
+
         if exit_code == 0:
             return f"✅ SUCCESS:\n{output}"
         else:

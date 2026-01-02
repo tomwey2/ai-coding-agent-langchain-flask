@@ -8,8 +8,20 @@ services:
     ports:
       - "5000:5000"
     environment:
-      - MISTRAL_API_KEY=$MISTRAL_API_KEY
-      - GITHUB_TOKEN=$GHCR_AI_CODING_AGENT_TOKEN
+      # GitHub token is mandatory for repository access
+      - GITHUB_TOKEN=${GHCR_AI_CODING_AGENT_TOKEN}
+      
+      # LLM API keys (only set if you want to use them)
+      - MISTRAL_API_KEY=${MISTRAL_API_KEY:-}
+      - GOOGLE_API_KEY=${GOOGLE_API_KEY:-}
+      - OPENAI_API_KEY=${OPENAI_API_KEY:-}
+      - OPENROUTER_API_KEY=${OPENROUTER_API_KEY:-}
+      
+      # Ollama API key (only if a key is needed)
+      - OLLAMA_API_KEY=${OLLAMA_API_KEY:-}
+      # Ollama base URL (only if you want to use Ollama not in a docker container)
+      - OLLAMA_BASE_URL=${OLLAMA_BASE_URL:-}
+      
       # in which workspace the agent works
       - WORKSPACE=/coding-agent-workspace
       # which workbench the agent uses

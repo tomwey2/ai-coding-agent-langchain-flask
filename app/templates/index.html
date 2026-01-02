@@ -302,6 +302,20 @@
                                         <h5>LLM Configuration</h5>
                                     </div>
                                     <div class="card-body">
+                                        {% if missing_provider_env %}
+                                        <div class="alert alert-warning" role="alert">
+                                            <strong>Missing API key:</strong> The selected provider
+                                            <code>{{ selected_provider }}</code> requires the
+                                            environment variable <code>{{ missing_provider_env }}</code>.
+                                            Please set it before activating the agent.
+                                        </div>
+                                        {% elif show_ollama_warning %}
+                                        <div class="alert alert-info" role="alert">
+                                            <strong>Ollama Note:</strong> Local Ollama instances usually
+                                            do not need an API key, but cloud providers might. Double-check
+                                            whether your deployment requires <code>OLLAMA_API_KEY</code>.
+                                        </div>
+                                        {% endif %}
                                         <div class="mb-3">
                                             <label
                                                 for="llm_provider"
@@ -345,6 +359,28 @@
                                                     %}
                                                 >
                                                     Google
+                                                </option>
+                                                <option
+                                                    value="openrouter"
+                                                    {%
+                                                    if
+                                                    form_data.llm_provider=="openrouter"
+                                                    %}selected{%
+                                                    endif
+                                                    %}
+                                                >
+                                                    OpenRouter
+                                                </option>
+                                                <option
+                                                    value="ollama"
+                                                    {%
+                                                    if
+                                                    form_data.llm_provider=="ollama"
+                                                    %}selected{%
+                                                    endif
+                                                    %}
+                                                >
+                                                    Ollama
                                                 </option>
                                             </select>
                                         </div>
