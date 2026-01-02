@@ -7,6 +7,26 @@ from flask import Flask, flash, redirect, render_template, request, url_for
 from extensions import db, scheduler
 from models import AgentConfig
 
+LLM_PROVIDER_API_ENV = {
+    "mistral": "MISTRAL_API_KEY",
+    "openai": "OPENAI_API_KEY",
+    "google": "GOOGLE_API_KEY",
+    "gemini": "GOOGLE_API_KEY",
+    "openrouter": "OPENROUTER_API_KEY",
+    "ollama": "OLLAMA_API_KEY",
+}
+
+
+def _missing_provider_env(provider: str) -> str | None:
+    if provider == "ollama":
+        return None
+    env_name = LLM_PROVIDER_API_ENV.get(provider)
+    if not env_name:
+        return None
+    if os.environ.get(env_name):
+        return None
+    return env_name
+
 
 def create_app(encryption_key: Fernet) -> Flask:
     """Create and configure an instance of the Flask application."""
@@ -165,6 +185,22 @@ def create_app(encryption_key: Fernet) -> Flask:
                     "warning",
                 )
 
-        return render_template("index.html", config=config, form_data=form_data)
+        if not form_data.get("llm_provider"):
+            form_data["llm_provider"] = "mistral"
+
+        selected_provider = form_data.get("llm_provider", "mistral")
+        missing_provider_env = _missing_provider_env(selected_provider)
+        show_ollama_warning = (
+            selected_provider == "ollama" and not os.environ.get("OLLAMA_API_KEY")
+        )
+
+        return render_template(
+            "index.html",
+            config=config,
+            form_data=form_data,
+            selected_provider=selected_provider,
+            missing_provider_env=missing_provider_env,
+            show_ollama_warning=show_ollama_warning,
+        )
 
     return app

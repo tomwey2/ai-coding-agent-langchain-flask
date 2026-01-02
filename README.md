@@ -140,7 +140,7 @@ Supported providers:
 |Mistral|`MISTRAL_API_KEY`|-|
 |OpenAI|`OPENAI_API_KEY`|-|
 |Google|`GOOGLE_API_KEY`|-|
-|Ollama|`OLLAMA_API_KEY` (optional)|`OLLAMA_BASE_URL` - default <http://host.docker.internal:11434>|
+|Ollama|`OLLAMA_API_KEY` (optional for local setups)|`OLLAMA_BASE_URL` - default http://host.docker.internal:11434|
 
 ```bash
 MISTRAL_API_KEY=<your-mistral-api-key> GHCR_AI_CODING_AGENT_TOKEN=<your-github-token> docker compose up -d --build
