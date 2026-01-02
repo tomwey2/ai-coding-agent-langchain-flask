@@ -100,6 +100,21 @@
                                             </div>
                                             <div class="mb-3">
                                                 <label
+                                                    for="trello_progress_list"
+                                                    class="form-label"
+                                                    >Move card to in progress
+                                                    list</label
+                                                >
+                                                <input
+                                                    type="text"
+                                                    class="form-control"
+                                                    id="trello_progress_list"
+                                                    name="trello_progress_list"
+                                                    value="{{ form_data.trello_progress_list or '' }}"
+                                                />
+                                            </div>
+                                            <div class="mb-3">
+                                                <label
                                                     for="trello_moveto_list"
                                                     class="form-label"
                                                     >Move updated card to
