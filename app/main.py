@@ -13,6 +13,23 @@ load_dotenv()
 if __name__ == "__main__":
     import logging
 
+
+    def _mask_secret(value: str) -> str:
+        if len(value) <= 4:
+            return "*" * len(value)
+        head = value[:2]
+        tail = value[-2:]
+        return f"{head}{'*' * (len(value) - 4)}{tail}"
+
+
+    def _log_secret(env_name: str) -> str:
+        value = os.environ.get(env_name)
+        if value:
+            logger.info(f"{env_name}: {_mask_secret(value)}")
+        else:
+            logger.info(f"{env_name} is not set")
+        return value
+
     logging.basicConfig(
         level=logging.INFO,
         format="%(name)s - %(levelname)s - %(message)s",
@@ -22,45 +39,17 @@ if __name__ == "__main__":
 
     logger = logging.getLogger(__name__)
 
-    GOOGLE_API_KEY = os.environ.get("GOOGLE_API_KEY")
-    logger.info(f"GOOGLE_API_KEY: {GOOGLE_API_KEY}")
-    if not GOOGLE_API_KEY:
-        logger.warning("GOOGLE_API_KEY is not set")
-    
-    MISTRAL_API_KEY = os.environ.get("MISTRAL_API_KEY")
-    logger.info(f"MISTRAL_API_KEY: {MISTRAL_API_KEY}")
-    if not MISTRAL_API_KEY:
-        logger.warning("MISTRAL_API_KEY is not set")
-    
-    OPENAI_API_KEY = os.environ.get("OPENAI_API_KEY")
-    logger.info(f"OPENAI_API_KEY: {OPENAI_API_KEY}")
-    if not OPENAI_API_KEY:
-        logger.warning("OPENAI_API_KEY is not set")
-    
-    OPENROUTER_API_KEY = os.environ.get("OPENROUTER_API_KEY")
-    logger.info(f"OPENROUTER_API_KEY: {OPENROUTER_API_KEY}")
-    if not OPENROUTER_API_KEY:
-        logger.warning("OPENROUTER_API_KEY is not set")
-    
-    OLLAMA_API_KEY = os.environ.get("OLLAMA_API_KEY")
-    logger.info(f"OLLAMA_API_KEY: {OLLAMA_API_KEY}")
-    if not OLLAMA_API_KEY:
-        logger.warning("OLLAMA_API_KEY is not set")
+    GOOGLE_API_KEY = _log_secret("GOOGLE_API_KEY")
+    MISTRAL_API_KEY = _log_secret("MISTRAL_API_KEY")
+    OPENAI_API_KEY = _log_secret("OPENAI_API_KEY")
+    OPENROUTER_API_KEY = _log_secret("OPENROUTER_API_KEY")
+    OLLAMA_API_KEY = _log_secret("OLLAMA_API_KEY")
     
     OLLAMA_BASE_URL = os.environ.get("OLLAMA_BASE_URL")
     logger.info(f"OLLAMA_BASE_URL: {OLLAMA_BASE_URL}")
     if not OLLAMA_BASE_URL:
-        logger.warning("OLLAMA_BASE_URL is not set")
+        logger.info("OLLAMA_BASE_URL is not set")
     
-    # if not (
-    #     os.environ.get("MISTRAL_API_KEY")
-    #     or os.environ.get("OPENAI_API_KEY")
-    #     or os.environ.get("GOOGLE_API_KEY")
-    # ):
-    #     raise ValueError(
-    #         "MISTRAL|OPENAI|GOOGLE_API key is not set. Application cannot start."
-    #     )
-
     if not os.environ.get("GITHUB_TOKEN"):
         raise ValueError("GITHUB_TOKEN is not set. Application cannot start.")
 
