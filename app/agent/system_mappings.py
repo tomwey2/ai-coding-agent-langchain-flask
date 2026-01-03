@@ -5,6 +5,7 @@ for each supported system.
 """
 
 import logging
+import os
 
 logger = logging.getLogger(__name__)
 
@@ -52,9 +53,14 @@ def parse_trello_response(data):
 # A lambda function to parse the Trello card format into our canonical task format
 trello_response_parser = parse_trello_response
 
+SERVERS_PATH = os.environ.get(
+    "SERVERS_PATH", "/coding-agent/servers"
+)
+
+
 SYSTEM_DEFINITIONS = {
     "TRELLO": {
-        "command": ["tsx", "/coding-agent/servers/trello/src/index.ts"],
+        "command": ["tsx", os.path.join(SERVERS_PATH, "trello/src/index.ts")],
         "polling_tool": "read_board",
         "polling_args": {"boardId": "{trello_todo_list_id}"},
         "response_parser": trello_response_parser,
