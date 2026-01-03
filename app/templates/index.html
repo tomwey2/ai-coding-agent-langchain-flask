@@ -382,6 +382,17 @@
                                                 >
                                                     Ollama
                                                 </option>
+                                                <option
+                                                    value="anthropic"
+                                                    {%
+                                                    if
+                                                    form_data.llm_provider=="anthropic"
+                                                    %}selected{%
+                                                    endif
+                                                    %}
+                                                >
+                                                    Anthropic
+                                                </option>
                                             </select>
                                         </div>
                                         <div class="mb-3">

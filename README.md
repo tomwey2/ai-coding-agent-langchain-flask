@@ -140,6 +140,7 @@ Supported providers:
 |Mistral|`MISTRAL_API_KEY`|-|
 |OpenAI|`OPENAI_API_KEY`|-|
 |Google|`GOOGLE_API_KEY`|-|
+|Anthropic|`ANTHROPIC_API_KEY`|-|
 |Ollama|`OLLAMA_API_KEY` (optional for local setups)|`OLLAMA_BASE_URL` - default http://host.docker.internal:11434|
 
 ```bash

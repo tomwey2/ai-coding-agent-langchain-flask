@@ -43,6 +43,7 @@ if __name__ == "__main__":
     MISTRAL_API_KEY = _log_secret("MISTRAL_API_KEY")
     OPENAI_API_KEY = _log_secret("OPENAI_API_KEY")
     OPENROUTER_API_KEY = _log_secret("OPENROUTER_API_KEY")
+    ANTHROPIC_API_KEY = _log_secret("ANTHROPIC_API_KEY")
     OLLAMA_API_KEY = _log_secret("OLLAMA_API_KEY")
     
     OLLAMA_BASE_URL = os.environ.get("OLLAMA_BASE_URL")

@@ -7,6 +7,7 @@ from langchain_google_genai import ChatGoogleGenerativeAI
 from langchain_mistralai import ChatMistralAI
 from langchain_openai import ChatOpenAI
 from langchain_ollama import ChatOllama
+from langchain_anthropic import ChatAnthropic
 from pydantic import SecretStr
 
 
@@ -56,6 +57,14 @@ def _create_openrouter_llm(model: str, temperature: float) -> BaseChatModel:
         api_key=SecretStr(api_key)
     )
 
+def _create_anthropic_llm(model: str, temperature: float) -> BaseChatModel:
+    api_key = _get_api_key("ANTHROPIC_API_KEY")
+    return ChatAnthropic(
+        model=model,
+        temperature=temperature,
+        api_key=api_key,
+    )
+
 def _create_ollama_llm(model: str, temperature: float) -> BaseChatModel:
     base_url = os.environ.get("OLLAMA_BASE_URL", "http://host.docker.internal:11434")
     api_key = os.environ.get("OLLAMA_API_KEY")
@@ -74,6 +83,7 @@ LLM_PROVIDERS: Dict[str, Callable[[str, float], BaseChatModel]] = {
     "gemini": _create_google_llm,
     "openrouter": _create_openrouter_llm,
     "ollama": _create_ollama_llm,
+    "anthropic": _create_anthropic_llm,
 }  
 
 
