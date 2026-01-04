@@ -14,6 +14,7 @@ LLM_PROVIDER_API_ENV = {
     "gemini": "GOOGLE_API_KEY",
     "openrouter": "OPENROUTER_API_KEY",
     "ollama": "OLLAMA_API_KEY",
+    "anthropic": "ANTHROPIC_API_KEY",
 }
 
 
